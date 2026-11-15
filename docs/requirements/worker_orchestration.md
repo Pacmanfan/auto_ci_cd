@@ -3,7 +3,7 @@
 **Status:** ACTIVE
 **Owner:** Development tooling (`scripts/workers/`, `tools/panel/`)
 **Depends On:** `development_operations.md` (REQ-DEVOPS-014 intake, REQ-DEVOPS-016 claims, REQ-DEVOPS-019 completion gate, REQ-DEVOPS-024 escalation, REQ-DEVOPS-025 recovery, REQ-DEVOPS-042 commit attribution, REQ-DEVOPS-051 verify-commit): the lifecycle the workers drive, unchanged
-**Decision:** ADR-000200 (supersedes the external-engine placement of ADR-000196; carries ADR-000197 and ADR-000198 forward)
+**Decision:** ADR-000200, amended by ADR-000201 (agent profiles, adapters) (supersedes the external-engine placement of ADR-000196; carries ADR-000197 and ADR-000198 forward)
 **Supersedes:** TICKET-ENGINE-001..008 (`docs/history/requirements/autonomous_ticket_engine.md`)
 **System documentation:** `docs/process/worker-orchestrator.md`, `docs/process/agent-profiles.md`
 
@@ -71,8 +71,15 @@ worker's state.
 - **Control:** a worker SHALL be enabled / disabled, started, stopped
   (after its current attempt) and stopped now (its session ended, the
   attempt INTERRUPTED, the claim kept).
+- **Agent profiles (ADR-000201):** `workers.agent` is the default agent
+  profile. `workers.profiles` MAY define named profiles that override it key
+  by key, and `workers.assign` MAY map a worker slot to one, so one fleet
+  can run different agents. Status SHALL show each worker's profile. An
+  assignment naming an undefined profile SHALL be a configuration problem
+  and that worker SHALL NOT start; it never falls back silently.
 - **Refusals:** start SHALL be refused for a disabled worker, when no agent
-  is configured (exit 10), and when the maximum already runs.
+  is configured for the worker's profile (exit 10), and when the maximum
+  already runs.
 - **Interfaces:** every control SHALL be available through
   `scripts/devsys.py workers …` and through the `workers.pool` API.
 
@@ -151,9 +158,14 @@ speaking the JSON-lines protocol of `scripts/workers/agent.py`).
 - **Neutral names:** code, configuration defaults, environment variables
   (`DEVSYS_WORKER_*`, `DEVSYS_SCRIPTS`), paths and documentation SHALL name
   no agent vendor or product.
-- **The one exception:** the documented agent profiles
-  (`docs/process/agent-profiles.md`), which hold the vendor-specific command
-  lines and variables an external agent genuinely requires.
+- **The documented exceptions:** the agent profiles page
+  (`docs/process/agent-profiles.md`), which holds the vendor-specific command
+  lines and variables an external agent genuinely requires, and the adapters
+  directory (`scripts/workers/profiles/`, only `*_adapter.py`), which holds
+  the wrappers that translate an agent's own event stream into the protocol
+  (ADR-000201). The adapters' file names stay neutral.
+- **Input is not the system:** request records under `requests/` quote what
+  a person asked for and are outside this rule.
 
 ## WORKER-013 — Relative to the containing project
 

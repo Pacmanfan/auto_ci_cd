@@ -43,6 +43,25 @@ def _check(root: Path, wid: str) -> None:
                                           f"{cfgmod.get('workers.max_workers', root, 0)})")
 
 
+def _command(root: Path, wid: str) -> tuple[list, str | None]:
+    """(agent argv template of the worker's profile, why it cannot run | None)."""
+    try:
+        command = list(agent.agent_settings(root, wid).get("command") or [])
+    except agent.NotConfigured as e:
+        return [], str(e)
+    profile = agent.profile_name(root, wid)
+    if not command:
+        return [], (f"the agent command of profile {profile!r} is empty (workers.agent.command is empty or "
+                    "workers.profiles): no agent to run (docs/process/agent-profiles.md)")
+    exe = str(command[0]).format(scripts=str(SCRIPTS_DIR), session_id="", name="", attempt_dir="")
+    if not shutil.which(exe):
+        # The worker inherits this PATH; it could claim a request and then not
+        # launch its agent.
+        return command, (f"the agent command {exe!r} (profile {profile!r}) is not an executable on PATH "
+                         f"({os.environ.get('PATH', '')})")
+    return command, None
+
+
 def process_liveness(rec: dict) -> tuple[str, str]:
     if not rec.get("process"):
         return "NONE", "no worker process recorded"
@@ -65,6 +84,8 @@ def worker_view(root: Path, wid: str) -> dict:
     verdict, why = process_liveness(rec)
     view = {k: rec.get(k) for k in ("id", "enabled", "desired", "status", "status_reason", "agent_id", "counters",
                                     "last")}
+    view["profile"] = agent.profile_name(root, wid)
+    view["configured"] = _command(root, wid)[1] is None
     view["process"] = {"verdict": verdict, "reason": why, "pid": (rec.get("process") or {}).get("pid")}
     if rec.get("status") in ("idle", "working", "stopping") and verdict != plat.ALIVE:
         view["status"] = "stopped"
@@ -116,7 +137,8 @@ def status(root: Path) -> dict:
     return {
         "system_root": str(Path(root).resolve()), "project_root": str(cfgmod.project_root(root)),
         "max_workers": int(s.get("max_workers", 0)), "isolation": s.get("isolation"),
-        "agent_configured": bool((s.get("agent") or {}).get("command")),
+        "agent_configured": bool(workers) and all(w["configured"] for w in workers if w["enabled"]),
+        "profiles": sorted({w["profile"] for w in workers}),
         "running": sum(1 for w in workers if w["process"]["verdict"] == plat.ALIVE),
         "workers": workers, "queue": devsys.queue(root), "working": working,
         "finished": done[:40],
@@ -145,15 +167,9 @@ def start(root: Path, wid: str, *, wait_seconds: float = 15.0) -> dict:
         raise WorkerError(proc.INVALID, f"{wid} is disabled (enable it first)")
     if is_running(rec):
         return {"worker": wid, "started": False, "reason": "already running", "pid": rec["process"]["pid"]}
-    command = cfgmod.get("workers.agent.command", root, []) or []
-    if not command:
-        raise WorkerError(cfgmod.NOT_CONFIGURED, "workers.agent.command is empty: no agent to run "
-                                                 "(docs/process/agent-profiles.md)")
-    if not shutil.which(str(command[0])):
-        # The worker inherits this PATH; it could claim a request and then not
-        # launch its agent.
-        raise WorkerError(cfgmod.NOT_CONFIGURED, f"the agent command {command[0]!r} (workers.agent.command) is "
-                                                 f"not an executable on PATH ({os.environ.get('PATH', '')})")
+    _, problem = _command(root, wid)
+    if problem:
+        raise WorkerError(cfgmod.NOT_CONFIGURED, problem)
     running = [w for w in state.slot_ids(root) if w != wid and is_running(state.load(root, w))]
     if len(running) >= int(cfgmod.get("workers.max_workers", root, 0)):
         raise WorkerError(proc.CONFLICT, f"{len(running)} worker(s) already running (workers.max_workers)")

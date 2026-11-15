@@ -21,16 +21,37 @@ provided the command:
 - writes its completion report to `$DEVSYS_WORKER_REPORT`, or ends its final
   message with it as a fenced JSON block.
 
-The placeholders `{session_id}` (a UUID), `{name}` (worker and attempt) and
-`{attempt_dir}` (the attempt's record directory) are substituted in every
-argument. An agent that speaks another format is wrapped in a small adapter
-script that translates to this protocol.
+The placeholders `{session_id}` (a UUID), `{name}` (worker and attempt),
+`{attempt_dir}` (the attempt's record directory) and `{scripts}` (this
+system's scripts directory) are substituted in every argument. An agent that
+speaks another format is wrapped in a small adapter script that translates
+to this protocol (`scripts/workers/profiles/`).
+
+## Several agents in one fleet (WORKER-006, ADR-000201)
+
+`workers.agent` is the **default** profile. Further profiles are named under
+`workers.profiles`, each overriding the default key by key, and
+`workers.assign` gives a worker slot its profile:
+
+```json
+"workers": {
+  "max_workers": 3,
+  "agent":    {"command": ["<default agent>", "..."]},
+  "profiles": {"second": {"command": ["<another agent>", "..."], "env_scrub": []}},
+  "assign":   {"worker-03": "second"}
+}
+```
+
+`devsys.py workers status`, the panels and the coordination roster show each
+worker's profile. A slot assigned to a profile that is not defined does not
+start (exit 10); `devsys.py doctor` reports it.
 
 ## Documented exception: vendor-specific profiles
 
-This page is the **only** place in the development system that names an
-agent vendor or product (WORKER-012; the identity test excludes exactly this
-file). An external command line genuinely needs a product's executable name,
+This page, together with the adapters directory
+`scripts/workers/profiles/`, is the **only** place in the development system
+that names an agent vendor or product (WORKER-012; the identity test excludes
+exactly these two, and the request records, which quote people). An external command line genuinely needs a product's executable name,
 flags and environment variables, so they live here as configuration to copy
 into `devsys.json`. Nothing in the code depends on them.
 
@@ -68,3 +89,46 @@ The profile the former external orchestrator used in live runs:
   select no tests.
 - The flags are those the former orchestrator used. Check them against the
   installed CLI's `--help` before an unattended run.
+
+### opencode (`opencode` CLI), major versions 1 and 2
+
+`opencode run --format json` writes its own event stream and no final result
+event, so the profile wraps it in the adapter
+`scripts/workers/profiles/event_stream_adapter.py`, which hands the prompt to
+the CLI on stdin, translates text and tool parts into `assistant` events and
+writes the `result` event when the CLI exits:
+
+```json
+"workers": {
+  "profiles": {
+    "opencode": {
+      "command": ["python3", "{scripts}/workers/profiles/event_stream_adapter.py", "--session-id", "{session_id}",
+                  "--", "opencode", "run", "--format", "json", "--auto", "--title", "{name}"],
+      "env_scrub": [],
+      "rate_limit_patterns": ["usage limit", "rate limit", "limit reached", "quota"]
+    }
+  },
+  "assign": {"worker-02": "opencode"}
+}
+```
+
+- `--auto` approves permissions that are not explicitly denied, which an
+  unattended session needs; restrict what it may do in the project's
+  `opencode.json` permissions. Add `-m <provider>/<model>` to pin a model.
+- The session's own id (`ses_...`) is in the transcript's events;
+  `opencode run --session <id>` continues it for inspection.
+- **Major version 1** (checked against 1.18): events are
+  `{"type": "text" | "tool_use" | "step_start" | "step_finish" | "error",
+  "sessionID", "part"}`; a prompt on stdin is accepted as the message.
+- **Major version 2** was not released when this profile was written. The
+  adapter also understands the server's bus-event shape
+  (`message.part.updated` / `session.error` with `properties`) and decides
+  per event (`--dialect auto`), so the same profile is intended to serve
+  both. That mapping is **unverified**: with 2.x installed, run one request
+  with `--raw-log {attempt_dir}/raw.jsonl` added before `--`, compare the raw
+  stream with the transcript, and check `opencode run --help` for renamed
+  flags. `--prompt arg` passes the prompt as the last argument if a version
+  no longer reads stdin; `--dialect 1` or `2` pins the mapping.
+- To run two versions side by side, define two profiles whose commands name
+  the two executables (for example `opencode` and a second installation's
+  path) and assign them to different worker slots.

@@ -1,9 +1,10 @@
 # Worker Orchestrator
 
 **Requirements:** `docs/requirements/worker_orchestration.md` WORKER-001..013
-**Decision:** ADR-000200 (carries ADR-000197 and ADR-000198 forward)
+**Decision:** ADR-000200 (carries ADR-000197 and ADR-000198 forward); ADR-000201 (agent profiles, coordination)
 **Code:** `scripts/workers/` (package), `scripts/devsys.py workers | queue | priority` (CLI), `tools/panel/` (Qt control panel)
 **Agent configuration:** `docs/process/agent-profiles.md`
+**Coordination and the other panels:** `docs/process/agent-coordination.md` (roster, messages between agents, web control panel, terminal dashboard)
 
 Workers execute this development system's requests unattended. Each worker
 works through the same lifecycle an interactive agent follows (AGENTS.md):
@@ -96,6 +97,9 @@ python3 scripts/devsys.py workers recover [ID ...] [--force]
 python3 scripts/devsys.py workers peek ID             # attempt, validation, transcript tail, events
 python3 scripts/devsys.py workers run ID [--once]     # the worker process itself, in the foreground
 tools/worker-panel                                    # the Qt control panel
+python3 tools/panel/web_panel.py [--open]             # the web control panel (docs/process/agent-coordination.md)
+python3 tools/panel/dash.py                           # the terminal dashboard
+python3 scripts/msg.py who | log --follow             # the agents and what they tell each other
 ```
 
 The **control panel** (`tools/panel/worker_panel.ui`, `worker_panel.py`)
@@ -128,6 +132,8 @@ enable / disable, start / stop all, and set the priority of a queued request.
 | `agent.env_scrub` | `[]` | variables removed from the agent's environment |
 | `agent.rate_limit_patterns` | usage / rate limit words | how an error result is recognised as a usage limit |
 | `agent.prompt` | `scripts/workers/prompts/worker.md` | the worker prompt |
+| `profiles` | `{}` | named agent profiles: each overrides `agent` key by key (`command`, `env_scrub`, `rate_limit_patterns`); `{scripts}` in a command is this system's scripts directory |
+| `assign` | `{}` | worker slot -> profile name (`{"worker-02": "<name>"}`); a slot without an entry runs `agent` (profile `default`); an undefined name is a configuration problem and that worker does not start |
 | `validation` | git-sanity, request-state, commit-binding | steps after every attempt (builtins, or commands with `when` and `exit_codes`) |
 
 Every worker's agent gets these variables:

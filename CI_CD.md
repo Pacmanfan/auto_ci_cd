@@ -41,6 +41,7 @@ its own workers (§15) drive it through the same commands.
 | Architecture audit | Read-only, manifest-driven conformance snapshot | `tools/audit`, `tools/audit_system/`, `.audit/manifest.json` |
 | Worker Orchestrator | Workers that execute requests unattended: one active request each, claims through the framework, gated completion, verified recovery | `scripts/workers/`, `scripts/devsys.py workers` |
 | Control panel | Qt window over the worker API: workers, their requests, queue, controls | `tools/panel/`, `tools/worker-panel` |
+| Agent coordination | Roster of agents with friendly names, message bus between agents and the operator (no authority over claims), shared across git worktrees; web control panel and terminal dashboard over one snapshot (COORD-001..009, ADR-000201, `docs/process/agent-coordination.md`) | `scripts/agent_messages.py`, `scripts/msg.py`, `scripts/workers/overview.py`, `tools/panel/web_panel.py`, `tools/panel/dash.py` |
 | Platform layer | Locks, no-clobber links, process identity and verification, process groups and trees | `scripts/devsys_platform.py` |
 | Machine state | Claims, counters, locks, journals (untracked) | `.agent/state/` |
 
@@ -256,7 +257,8 @@ Created at runtime (never tracked):
 | `docs/process/process-protection.md` | Protected artifacts need a PROCESS-CHANGE request, `Type: process-change` work and an ADR. **Protected.** |
 | `docs/process/chat-intake.md` · `crash-investigation.md` · `engineering-rules.md` · `historical-id-collisions.md` | Intake (duplicates, follow-ups), the crash workflow, a practical summary, accepted id collisions. |
 | `docs/process/worker-orchestrator.md` | The Worker Orchestrator: responsibility boundaries, request and worker state model, commands, configuration, runtime state, recovery, isolation, project-subdirectory installation. |
-| `docs/process/agent-profiles.md` | The agent protocol and the one documented vendor-specific profile (configuration only). |
+| `docs/process/agent-profiles.md` | The agent protocol, agent profiles per worker slot, and the documented vendor-specific profiles (configuration only; adapters in `scripts/workers/profiles/`). |
+| `docs/process/agent-coordination.md` | Agent coordination: roster, messages, web control panel, terminal dashboard, worktrees. |
 
 ### 4.3 Lifecycle tooling (Python ≥ 3.9, standard library)
 
@@ -1005,7 +1007,7 @@ record, `--complete-request`, the owned-path commit and release.
 | Three workers, each completing a full gated lifecycle at the same time | 6 runs one after another, and 12 runs four at a time (under load). Each run: every request completed, every validation PASS, every commit VERIFIED, a clean tree, no claim left |
 | Multi-worker demonstration: 5 requests from CRITICAL to LOW, 3 detached workers (`workers start`) | See the list below the table |
 | This directory in place | `drift_detect` PASS, `doc_integrity` PASS, `invariant_check` NOT CONFIGURED, `devsys_config --validate` OK, `verify-structure` OK. `doctor` FAIL only for "not the top of a git work tree" (expected here), and NOT CONFIGURED placeholders, now including `workers.agent.command`. `./tools/audit standard` on the scratch copy: 8 PASS, 0 FAIL, 0 DRIFT, 3 UNKNOWN, 5 SKIPPED |
-| Vendor identity | The vendor name appears only in `docs/process/agent-profiles.md`. No machine-specific path appears in the system (`test_workers.Identity`) |
+| Vendor identity | Vendor names appear only in `docs/process/agent-profiles.md` and the adapters directory `scripts/workers/profiles/`. No machine-specific path appears in the system (`test_workers.Identity`) |
 | The originals | The imported orchestrator's source repository: all 4721 files byte-identical to the phase-1 checksums, HEAD unchanged. The source project: no command wrote into it. Its HEAD and status changed only through other sessions' commits |
 
 The multi-worker demonstration showed:

@@ -95,7 +95,7 @@ CONFIGURED is never reported as PASS.
 | `requirement_impact.domains` | development | domain → path keywords for `requirement_impact.py` |
 | `crash.*` | `*.core`, `log/app.log` | core glob, fallback dump directory, logs, debug binary for `crash_evidence.py` |
 | `drift.unverified_completion` | `FAIL` | level of completions without the tooling's record (`WARN` / `OFF` while adopting history) |
-| `workers.*` | 2 workers, shared isolation, no agent | the Worker Orchestrator: `max_workers`, `isolation` (`shared` / `worktree`), `poll_seconds`, `attempt.*` (runtime, attempts per request, kill grace, consecutive failures, usage-limit wait), `selection.exclude_types`, `agent.command` / `env_scrub` / `rate_limit_patterns` / `prompt`, `validation` steps; `docs/process/worker-orchestrator.md` §4, `docs/process/agent-profiles.md` |
+| `workers.*` | 2 workers, shared isolation, no agent | the Worker Orchestrator: `max_workers`, `isolation` (`shared` / `worktree`), `poll_seconds`, `attempt.*` (runtime, attempts per request, kill grace, consecutive failures, usage-limit wait), `selection.exclude_types`, `agent.command` / `env_scrub` / `rate_limit_patterns` / `prompt`, `profiles` (named agent profiles overriding `agent`) and `assign` (worker slot -> profile), `validation` steps; `docs/process/worker-orchestrator.md` §4, `docs/process/agent-profiles.md` |
 | `health.structure_timeout_seconds` | `300` | budget of each health check; a timeout is UNKNOWN |
 | `structure.required_paths` / `required_dirs` / `extra_checks` | the framework scaffold / `[]` | what `verify-structure` requires; extra argv checks must exit 0 |
 

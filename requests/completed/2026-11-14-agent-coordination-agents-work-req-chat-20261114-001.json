@@ -1,0 +1,137 @@
+{
+  "request_id": "REQ-CHAT-20261114-001",
+  "source": "chat",
+  "type": "FEATURE",
+  "priority": "HIGH",
+  "created": "2026-11-14T23:00:33-05:00",
+  "created_utc": "2026-11-15T04:00:33+00:00",
+  "id_date": "2026-11-14",
+  "timezone": "EST (UTC-05:00)",
+  "status": "completed",
+  "original_text": "Agent coordination: agents working in this repository should coordinate with each other instead of only excluding each other. Add (1) friendly agent names and a roster of who is working on what; (2) an inter-agent message bus (direct, broadcast and per-request messages) that works peer-to-peer now and lets a coordinator/lead agent be added later as just another participant; (3) a web control panel run by a Python script, with full control (start/stop/recover/enable/disable workers, set priority, send operator messages), localhost by default; (4) a live CLI dashboard; both must show the messages agents send to each other; (5) support for mixed fleets: Claude Code and opencode major versions 1 and 2, selectable per worker; (6) all of it must work with git worktrees (shared state across worktrees, each agent's worktree/branch visible).",
+  "file": "requests/inbox/2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.md",
+  "attachments": [],
+  "context": "Chat brainstorm 2026-11-14. Operator decisions: opencode 1 and 2 = two major versions; coordination = peer-to-peer now, lead later; panel scope = full control; process = baseline commit then full request process. Follow-up chat message: 'and support git work trees'.",
+  "text_sha256": "8fed2dd47fa0c943634d6e8aed5b19cedc1b218b0baa32ebe30df1b9b21cf81e",
+  "classification": {
+    "proposed_type": "FEATURE",
+    "proposed_source": "override",
+    "normalized_type": "FEATURE",
+    "heuristic_type": "FEATURE",
+    "final_type": "FEATURE",
+    "confidence": "high",
+    "validation": "PASS",
+    "classifier_reason": "request statement is framed as feature: Add, added, enable, must show",
+    "correction_reason": null,
+    "normalization_note": null,
+    "evidence": [
+      {
+        "category": "FEATURE",
+        "where": "head",
+        "phrase": "Add",
+        "strength": "strong",
+        "note": "",
+        "sentence": "Add (1) friendly agent names and a roster of who is working on what;"
+      },
+      {
+        "category": "FEATURE",
+        "where": "head",
+        "phrase": "added",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(2) an inter-agent message bus (direct, broadcast and per-request messages) that works peer-to-peer now and lets a coordinator/lead agent be added later as just another participant;"
+      },
+      {
+        "category": "FEATURE",
+        "where": "head",
+        "phrase": "enable",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(3) a web control panel run by a Python script, with full control (start/stop/recover/enable/disable workers, set priority, send operator messages), localhost by default;"
+      },
+      {
+        "category": "FEATURE",
+        "where": "head",
+        "phrase": "must show",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(4) a live CLI dashboard; both must show the messages agents send to each other;"
+      },
+      {
+        "category": "FEATURE",
+        "where": "head",
+        "phrase": "support for",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(5) support for mixed fleets: Claude Code and opencode major versions 1 and 2, selectable per worker;"
+      }
+    ],
+    "scores": {
+      "FEATURE": {
+        "head": 5,
+        "body": 0
+      },
+      "BUG": {
+        "head": 0,
+        "body": 0
+      },
+      "CRASH": {
+        "head": 0,
+        "body": 0
+      },
+      "REGRESSION": {
+        "head": 0,
+        "body": 0
+      },
+      "PERFORMANCE": {
+        "head": 0,
+        "body": 0
+      },
+      "REFACTOR": {
+        "head": 0,
+        "body": 0
+      },
+      "BUILD": {
+        "head": 0,
+        "body": 0
+      },
+      "DOCUMENTATION": {
+        "head": 0,
+        "body": 0
+      },
+      "INVESTIGATION": {
+        "head": 0,
+        "body": 0
+      },
+      "PROCESS-CHANGE": {
+        "head": 0,
+        "body": 0
+      }
+    },
+    "evidence_total": 5,
+    "validator": "scripts/request_classification.py"
+  },
+  "links": {
+    "work": [
+      "WORK-000001"
+    ]
+  },
+  "commits": [],
+  "resolution": {
+    "from": "processing",
+    "to": "completed",
+    "at": "2026-11-15T04:47:39.045302+00:00",
+    "by": "agent-dev-20261114230032-8bee2e",
+    "gates": [
+      {
+        "work": "WORK-000001",
+        "at": "2026-11-15T04:47:30.507904+00:00",
+        "verdict": "PASS",
+        "request_fingerprint": "eafdb9646fa4412cb9b58319f950fd570ed2b21126bac5fbd4c9f5dedcbbd7ea",
+        "test_runs": [
+          "20261114T234259-3083906"
+        ]
+      }
+    ]
+  }
+}

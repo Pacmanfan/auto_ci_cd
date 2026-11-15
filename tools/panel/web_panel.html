@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control Panel</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --line: #d9dde3; --text: #1b1f24; --muted: #667080;
+    --accent: #2f6fde; --ok: #1f8a4c; --warn: #b7791f; --bad: #c23b3b; --idle: #7a8494;
+    --chip: #eceff3; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171b; --panel: #1d2127; --line: #313843; --text: #e4e7eb; --muted: #94a0b0;
+            --accent: #6aa0ff; --ok: #4cc27f; --warn: #e0a846; --bad: #ef6b6b; --idle: #8792a2; --chip: #2a3039; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 10px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .stat { color: var(--muted); }
+  header .stat b { color: var(--text); }
+  header .spacer { flex: 1; }
+  main { display: grid; gap: 12px; padding: 12px 16px; grid-template-columns: minmax(280px, 1fr) minmax(340px, 1.5fr) minmax(280px, 1fr); align-items: start; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+  section > h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+                 margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+  section > h2 .spacer { flex: 1; }
+  .body { padding: 10px 12px; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+  .card.sel { border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .name { font-weight: 600; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .mono { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+  .chip { background: var(--chip); border-radius: 10px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--idle); flex: none; }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+  button, select, input, textarea { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .45; cursor: default; }
+  textarea { width: 100%; resize: vertical; min-height: 54px; }
+  .actions { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .actions button { padding: 2px 8px; font-size: 12px; }
+  #messages { max-height: 62vh; overflow-y: auto; padding: 4px 12px; }
+  .msg { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .msg:last-child { border-bottom: 0; }
+  .msg .text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+  .msg.operator .from { color: var(--accent); }
+  .kind-question, .kind-path-request { color: var(--warn); } .kind-alert { color: var(--bad); } .kind-answer { color: var(--ok); }
+  .compose { border-top: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 6px; }
+  .compose .row > * { flex: 1; min-width: 90px; }
+  .compose .row > button { flex: none; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 4px 6px 4px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button { border: 0; background: none; padding: 2px 8px; border-radius: 10px; color: var(--muted); }
+  .tabs button.on { background: var(--chip); color: var(--text); }
+  pre { margin: 6px 0 0; padding: 8px; background: var(--chip); border-radius: 5px; max-height: 260px; overflow: auto;
+        font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #toast { position: fixed; right: 16px; bottom: 16px; max-width: 460px; background: var(--panel); border: 1px solid var(--line);
+           border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 12px; display: none; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+  #toast.err { border-left-color: var(--bad); }
+  .empty { color: var(--muted); padding: 6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Control Panel</h1>
+  <span class="stat">workers <b id="s-running">-</b> / <b id="s-max">-</b></span>
+  <span class="stat">agents <b id="s-agents">-</b></span>
+  <span class="stat">queued <b id="s-queued">-</b></span>
+  <span class="stat">working <b id="s-working">-</b></span>
+  <span class="stat">isolation <b id="s-isolation">-</b></span>
+  <span class="spacer"></span>
+  <button id="start-all">Start all</button>
+  <button id="stop-all">Stop all</button>
+  <span class="row small"><span class="dot" id="conn"></span><span id="conn-text" class="muted">connecting</span></span>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>Workers</h2>
+      <div class="body" id="workers"></div>
+    </section>
+    <section style="margin-top:12px">
+      <h2>Agents</h2>
+      <div class="body" id="agents"></div>
+    </section>
+    <section style="margin-top:12px" id="detail-box" hidden>
+      <h2><span id="detail-title">Worker</span><span class="spacer"></span><button id="detail-close">Close</button></h2>
+      <div class="body" id="detail"></div>
+    </section>
+  </div>
+  <section>
+    <h2>Agent messages <span class="spacer"></span>
+      <select id="f-agent" title="Show messages involving"><option value="">everyone</option></select>
+      <select id="f-kind" title="Kind"><option value="">any kind</option></select>
+    </h2>
+    <div id="messages"></div>
+    <form class="compose" id="compose">
+      <div class="row">
+        <select id="c-to" title="Recipient"></select>
+        <select id="c-kind" title="Kind"></select>
+        <input id="c-request" placeholder="request id (optional)">
+      </div>
+      <textarea id="c-body" placeholder="Write to an agent, a role or everyone as the operator"></textarea>
+      <div class="row"><span class="muted small" id="c-reply"></span><span class="spacer" style="flex:1"></span>
+        <button type="submit" class="primary">Send</button></div>
+    </form>
+  </section>
+  <div>
+    <section>
+      <h2>Requests <span class="spacer"></span>
+        <span class="tabs" id="req-tabs">
+          <button data-tab="queue" class="on">Queued</button><button data-tab="working">Working</button><button data-tab="finished">Finished</button>
+        </span>
+      </h2>
+      <div class="body" id="requests"></div>
+      <form class="compose" id="submit">
+        <textarea id="r-text" placeholder="New request: describe the work (one prompt = one request)"></textarea>
+        <div class="row"><select id="r-priority"></select><button type="submit">Submit request</button></div>
+      </form>
+    </section>
+    <section style="margin-top:12px">
+      <h2>Worktrees</h2>
+      <div class="body" id="worktrees"></div>
+    </section>
+  </div>
+</main>
+<div id="toast"></div>
+<script>
+"use strict";
+const TOKEN = "__PANEL_TOKEN__";
+const $ = id => document.getElementById(id);
+let snap = null, tab = "queue", selected = null, replyTo = null;
+
+// Every value shown comes from agents or request text: build nodes, never HTML strings.
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid.nodeType ? kid : String(kid));
+  return n;
+}
+function toast(text, err) {
+  const t = $("toast"); t.textContent = text; t.className = err ? "err" : ""; t.style.display = "block";
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.style.display = "none", err ? 9000 : 3500);
+}
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json", "X-Panel-Token": TOKEN}, body: JSON.stringify(body)}
+                                   : {headers: {"X-Panel-Token": TOKEN}});
+  const data = await r.json().catch(() => ({error: "unreadable answer"}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+async function act(body, done) {
+  try {
+    const out = await api("/api/act", body);
+    const errs = (out.results || []).filter(x => x.error).map(x => `${x.worker}: ${x.error}`);
+    if (errs.length) toast(errs.join("\n"), true); else toast(done || "Done");
+    return out;
+  } catch (e) { toast(e.message, true); }
+}
+const dur = s => s == null ? "-" : s >= 3600 ? `${Math.floor(s / 3600)}h${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}m` : `${Math.floor(s / 60)}m${String(Math.floor(s % 60)).padStart(2, "0")}s`;
+const time = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString(); };
+const liveClass = v => v === "ALIVE" || v === "ACTIVE" ? "ok" : v === "DEAD" ? "bad" : v === "STALE" ? "warn" : "";
+const base = p => (p || "").split("/").filter(Boolean).pop() || "";
+
+function renderWorkers() {
+  const box = $("workers"); box.replaceChildren();
+  for (const w of snap.pool.workers) {
+    const running = w.process.verdict === "ALIVE", act_ = w.active;
+    const cls = w.status === "working" ? "ok" : w.status === "idle" ? "warn" : "";
+    box.append(el("div", {class: "card" + (selected === w.id ? " sel" : "")},
+      el("div", {class: "row"}, el("span", {class: "dot " + cls}), el("span", {class: "name"}, w.id),
+        el("span", {class: "chip"}, w.status), el("span", {class: "chip", title: "agent profile"}, w.profile),
+        !w.enabled && el("span", {class: "chip"}, "disabled"), !w.configured && el("span", {class: "chip", style: "color:var(--bad)"}, "not configured")),
+      act_ ? el("div", {class: "small"}, `${act_.request_id} [${act_.priority || "-"}] ${act_.title || ""}`,
+                el("div", {class: "muted"}, `running ${dur(act_.elapsed_seconds)}, session ${act_.session.verdict}`))
+           : el("div", {class: "small muted"}, w.last ? `last: ${w.last.request_id} ${w.last.outcome || ""}` : (w.status_reason || "")),
+      el("div", {class: "actions"},
+        el("button", {disabled: running || !w.enabled, onclick: () => act({action: "start", worker: w.id}, `${w.id} started`)}, "Start"),
+        el("button", {disabled: !running, onclick: () => act({action: "stop", worker: w.id}, `${w.id} stops after its attempt`)}, "Stop"),
+        el("button", {class: "danger", disabled: !running, onclick: () => confirm(`End ${w.id}'s running session now?`) && act({action: "stop_now", worker: w.id}, `${w.id} stopping now`)}, "Stop now"),
+        el("button", {disabled: running, onclick: () => act({action: "recover", worker: w.id}).then(o => o && toast(o.results[0].detail || "Done"))}, "Recover"),
+        el("button", {onclick: () => act({action: w.enabled ? "disable" : "enable", worker: w.id})}, w.enabled ? "Disable" : "Enable"),
+        el("button", {onclick: () => peek(w.id)}, "Details"))));
+  }
+  if (!snap.pool.workers.length) box.append(el("div", {class: "empty"}, "No worker slots (workers.max_workers is 0)."));
+}
+function renderAgents() {
+  const box = $("agents"); box.replaceChildren();
+  for (const a of snap.agents) {
+    const claim = a.claims[0];
+    box.append(el("div", {class: "card"},
+      el("div", {class: "row"}, el("span", {class: "dot " + liveClass(a.liveness), title: a.liveness_reason}), el("span", {class: "name"}, a.name),
+        a.profile && el("span", {class: "chip"}, a.profile), a.worker && el("span", {class: "chip"}, a.worker),
+        (a.roles || []).map(r => el("span", {class: "chip"}, r)), a.unread > 0 && el("span", {class: "chip", style: "color:var(--warn)"}, `${a.unread} unread`)),
+      el("div", {class: "small"}, claim ? `${claim.request_id || claim.request} (${claim.state}, ${claim.paths} paths)` + (claim.step ? `, step: ${claim.step}` : "") : el("span", {class: "muted"}, "no claim")),
+      el("div", {class: "small muted"}, a.branch ? `${a.branch} @ ${base(a.worktree)}` : (a.cwd || "")),
+      el("div", {class: "actions"}, el("button", {onclick: () => { $("c-to").value = a.name; $("c-body").focus(); }}, "Message"),
+        el("button", {onclick: () => { $("f-agent").value = a.agent_id; renderMessages(); }}, "Filter"))));
+  }
+  if (!snap.agents.length) box.append(el("div", {class: "empty"}, "No agents registered yet. Agents join with scripts/msg.py join, or by claiming a request."));
+}
+function renderMessages() {
+  const box = $("messages"), fa = $("f-agent").value, fk = $("f-kind").value;
+  const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  const entry = snap.agents.find(a => a.agent_id === fa);
+  const mine = m => !fa || m.from === fa || m.to === fa || m.to === "all" || (entry && ((entry.roles || []).includes(m.to)));
+  const list = snap.messages.filter(m => mine(m) && (!fk || m.kind === fk));
+  box.replaceChildren(...list.map(m => el("div", {class: "msg" + (m.from === "operator" ? " operator" : "")},
+    el("div", {class: "row small"}, el("span", {class: "name from"}, m.from_name || m.from), el("span", {class: "muted"}, "to"),
+      el("span", {class: "name"}, m.to_name || m.to), el("span", {class: "chip kind-" + m.kind}, m.kind),
+      m.request && el("span", {class: "chip"}, m.request), el("span", {class: "muted"}, `#${m.seq} ${time(m.at)}`),
+      el("button", {style: "padding:0 6px;font-size:12px", onclick: () => setReply(m)}, "Reply")),
+    m.subject && el("div", {class: "small name"}, m.subject), el("div", {class: "text"}, m.body))));
+  if (!list.length) box.append(el("div", {class: "empty"}, "No messages yet. Agents write with scripts/msg.py send; you can write below."));
+  if (atEnd) box.scrollTop = box.scrollHeight;
+}
+function setReply(m) {
+  replyTo = m; $("c-reply").textContent = m ? `replying to #${m.seq} from ${m.from_name || m.from} (click to cancel)` : "";
+  if (m && m.from !== "operator") { fillSelect($("c-to"), recipients(), m.from_name); $("c-kind").value = "answer"; }
+  if (m) $("c-body").focus();
+}
+function renderRequests() {
+  const box = $("requests"), p = snap.pool, rows = [];
+  if (tab === "queue") for (const q of p.queue) rows.push(el("tr", {},
+    el("td", {}, el("select", {onchange: e => act({action: "priority", request: q.request, priority: e.target.value}, "Priority set")},
+      snap.priorities.map(x => el("option", {selected: x === q.priority}, x)))),
+    el("td", {}, el("div", {class: "mono"}, q.request_id), el("div", {class: "small"}, q.title), el("div", {class: "small muted"}, q.type))));
+  if (tab === "working") for (const w of p.working) rows.push(el("tr", {},
+    el("td", {}, el("span", {class: "dot " + liveClass(w.liveness), title: w.liveness})),
+    el("td", {}, el("div", {class: "mono"}, w.request_id), el("div", {class: "small"}, w.title),
+      el("div", {class: "small muted"}, `${w.priority || "-"} · ${w.worker || agentName(w.agent_id)}`))));
+  if (tab === "finished") for (const f of p.finished) rows.push(el("tr", {},
+    el("td", {}, el("span", {class: "chip", style: f.state === "completed" ? "color:var(--ok)" : f.state === "rejected" ? "color:var(--bad)" : "color:var(--warn)"}, f.state)),
+    el("td", {}, el("div", {class: "mono"}, f.request_id), el("div", {class: "small"}, f.title), el("div", {class: "small muted"}, time(f.at)))));
+  box.replaceChildren(rows.length ? el("table", {}, ...rows) : el("div", {class: "empty"}, "Nothing here."));
+}
+function renderWorktrees() {
+  $("worktrees").replaceChildren(...snap.worktrees.map(w => el("div", {class: "card"},
+    el("div", {class: "row"}, el("span", {class: "name"}, w.branch || "(no branch)"), w.main && el("span", {class: "chip"}, "main checkout"), el("span", {class: "muted small"}, w.head || "")),
+    el("div", {class: "mono muted"}, w.path),
+    el("div", {class: "small"}, w.requests.length ? w.requests.join(", ") : el("span", {class: "muted"}, "no claimed request")))));
+}
+const agentName = id => (snap.agents.find(a => a.agent_id === id) || {}).name || id || "-";
+function recipients() {
+  const roles = [...new Set(snap.agents.flatMap(a => a.roles || []))];
+  return ["all", ...snap.agents.filter(a => a.registered).map(a => a.name), ...roles];
+}
+function fillSelect(sel, values, keep, labels) {
+  const cur = keep !== undefined ? keep : sel.value;
+  const want = values.join("\u0000");
+  if (sel.dataset.values !== want) {
+    const first = sel.dataset.first === "1" ? sel.options[0] : null;
+    sel.replaceChildren(...(first ? [first] : []), ...values.map((v, i) => el("option", {value: v}, labels ? labels[i] : v)));
+    sel.dataset.values = want;
+  }
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+function render() {
+  const p = snap.pool;
+  $("title").textContent = (snap.project && !snap.project.startsWith("<") ? snap.project + " · " : "") + "Control Panel";
+  $("s-running").textContent = p.running; $("s-max").textContent = p.max_workers; $("s-agents").textContent = snap.agents.length;
+  $("s-queued").textContent = p.queue.length; $("s-working").textContent = p.working.length; $("s-isolation").textContent = p.isolation;
+  fillSelect($("c-to"), recipients()); fillSelect($("c-kind"), snap.kinds); fillSelect($("r-priority"), snap.priorities, $("r-priority").value || "NORMAL");
+  $("f-agent").dataset.first = "1"; $("f-kind").dataset.first = "1";
+  fillSelect($("f-agent"), snap.agents.map(a => a.agent_id), undefined, snap.agents.map(a => a.name)); fillSelect($("f-kind"), snap.kinds);
+  renderWorkers(); renderAgents(); renderMessages(); renderRequests(); renderWorktrees();
+}
+async function peek(id) {
+  selected = id; renderWorkers();
+  try {
+    const v = await api("/api/peek?worker=" + encodeURIComponent(id));
+    $("detail-box").hidden = false; $("detail-title").textContent = `${id} details`;
+    const at = v.attempt, lines = [
+      `status: ${v.status} ${v.status_reason || ""}`, `process: ${v.process.verdict} ${v.process.reason}`, `agent id: ${v.agent_id || "-"}`,
+      `counters: ${JSON.stringify(v.counters)}`,
+      v.active ? `active: ${v.active.request_id} attempt ${v.active.attempt_id}\ncwd: ${v.active.cwd}\nsession: ${v.active.session.verdict} ${v.active.session.reason}` : "active: none",
+      at ? `attempt ${at.attempt_id}: ${at.status} ${at.result || ""} ${at.result_reason || ""}` : ""];
+    $("detail").replaceChildren(el("pre", {}, lines.filter(Boolean).join("\n")),
+      el("div", {class: "small muted", style: "margin-top:8px"}, "Transcript tail"), el("pre", {}, (v.transcript_tail || []).join("\n") || "(none)"),
+      el("div", {class: "small muted", style: "margin-top:8px"}, "Events"),
+      el("pre", {}, (v.events || []).map(e => `${time(e.at)} ${e.event} ${JSON.stringify(Object.fromEntries(Object.entries(e).filter(([k]) => k !== "at" && k !== "event")))}`).join("\n") || "(none)"));
+  } catch (e) { toast(e.message, true); }
+}
+$("detail-close").onclick = () => { $("detail-box").hidden = true; selected = null; renderWorkers(); };
+$("start-all").onclick = () => act({action: "start", worker: "all"}, "Workers started");
+$("stop-all").onclick = () => act({action: "stop", worker: "all"}, "Workers stop after their attempts");
+$("f-agent").onchange = renderMessages; $("f-kind").onchange = renderMessages;
+$("c-reply").onclick = () => setReply(null);
+$("req-tabs").onclick = e => { if (!e.target.dataset.tab) return; tab = e.target.dataset.tab;
+  for (const b of $("req-tabs").children) b.classList.toggle("on", b === e.target); renderRequests(); };
+$("compose").onsubmit = async e => {
+  e.preventDefault();
+  const body = $("c-body").value.trim(); if (!body) return;
+  const out = await act({action: "message", to: $("c-to").value, kind: $("c-kind").value, body,
+                         request: $("c-request").value.trim() || undefined, reply_to: replyTo ? replyTo.id : undefined}, "Message sent");
+  if (out) { $("c-body").value = ""; setReply(null); }
+};
+$("c-body").onkeydown = e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("compose").requestSubmit(); };
+$("submit").onsubmit = async e => {
+  e.preventDefault();
+  const text = $("r-text").value.trim(); if (!text) return;
+  const out = await act({action: "submit", text, priority: $("r-priority").value});
+  if (out && out.created) { $("r-text").value = ""; toast(`Created ${out.created.request_id}`); }
+};
+function connect() {
+  const es = new EventSource("/api/events?token=" + encodeURIComponent(TOKEN));
+  es.addEventListener("snapshot", e => { snap = JSON.parse(e.data); render(); $("conn").className = "dot ok"; $("conn-text").textContent = "live"; });
+  es.onerror = () => { $("conn").className = "dot bad"; $("conn-text").textContent = "reconnecting"; };
+}
+connect();
+</script>
+</body>
+</html>

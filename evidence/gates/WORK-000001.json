@@ -1,0 +1,47 @@
+{
+ "work": "WORK-000001",
+ "runs": [
+  {
+   "at": "2026-11-15T04:47:30.507904+00:00",
+   "verdict": "PASS",
+   "gate_version": 3,
+   "work": "WORK-000001",
+   "request": "2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.md",
+   "request_id": "REQ-CHAT-20261114-001",
+   "request_fingerprint": "eafdb9646fa4412cb9b58319f950fd570ed2b21126bac5fbd4c9f5dedcbbd7ea",
+   "request_code_paths": [
+    "scripts/agent_messages.py",
+    "scripts/claim.py",
+    "scripts/devsys.py",
+    "scripts/devsys_config.py",
+    "scripts/drift_detect.py",
+    "scripts/msg.py",
+    "scripts/templates/decisions.txt",
+    "scripts/templates/devsys.json",
+    "scripts/templates/requirements.txt",
+    "scripts/tests/test_agent_coordination.py",
+    "scripts/tests/test_workers.py",
+    "scripts/workers/agent.py",
+    "scripts/workers/overview.py",
+    "scripts/workers/pool.py",
+    "scripts/workers/profiles/event_stream_adapter.py",
+    "scripts/workers/profiles/opencode_adapter.py",
+    "scripts/workers/runner.py",
+    "tools/panel/dash.py",
+    "tools/panel/web_panel.html",
+    "tools/panel/web_panel.py"
+   ],
+   "test_runs": [
+    "20261114T234259-3083906"
+   ],
+   "evidence": [
+    "VER-000001"
+   ],
+   "head": "c58c563ab217d498468dfeec06fee21a6ef49d54",
+   "agent_id": "agent-dev-20261114230032-8bee2e",
+   "fails": [],
+   "warns": [],
+   "passes": 14
+  }
+ ]
+}

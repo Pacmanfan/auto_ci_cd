@@ -268,7 +268,12 @@ def _check_work_state(root: Path, findings: list, work_txt: str):
             # another state is the same request (not drift); a request that
             # exists in no state directory is.
             name = Path(target).name
-            where = next((rs for rs in REQUEST_STATE_DIRS if (root / "requests" / rs / name).exists()), None)
+            # Request files live and move in the MAIN worktree (claims act
+            # there): from a request's linked git worktree the request is
+            # looked up in both, as agent_process.locate_request does.
+            import agent_process
+            where = next((rs for rs in REQUEST_STATE_DIRS
+                          if any((r / "requests" / rs / name).exists() for r in agent_process._roots(root))), None)
             if where is None:
                 findings.append(("FAIL", "WORK_REQUEST_MISSING",
                                  f"{rel} links {target}, which exists in no request state directory"))

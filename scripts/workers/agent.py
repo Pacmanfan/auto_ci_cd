@@ -2,7 +2,8 @@
 
 The agent is whatever coding-agent command line the project configures in
 ``workers.agent.command`` (docs/process/agent-profiles.md). The contract is
-generic:
+generic (per worker slot a named profile may replace it: ``workers.profiles``
+and ``workers.assign``):
 
 * the prompt is written to the agent's stdin;
 * its stdout is a JSON-lines event stream, written straight to
@@ -48,21 +49,46 @@ class NotConfigured(RuntimeError):
     pass
 
 
-def agent_settings(root: Path) -> dict:
-    return dict(cfgmod.get("workers.agent", root, {}) or {})
+DEFAULT_PROFILE = "default"
 
 
-def build_cmd(root: Path, *, session_id: str, name: str, attempt_dir: Path) -> list[str]:
-    template = list(agent_settings(root).get("command") or [])
+def profile_name(root: Path, worker: str | None = None) -> str:
+    """The agent profile a worker slot runs: ``workers.assign[<worker>]``, else
+    ``default`` (the ``workers.agent`` settings)."""
+    assigned = (cfgmod.get("workers.assign", root, {}) or {}).get(worker or "")
+    return str(assigned) if assigned else DEFAULT_PROFILE
+
+
+def agent_settings(root: Path, worker: str | None = None) -> dict:
+    """The agent settings of a worker slot. ``workers.agent`` is the default
+    profile; a named profile (``workers.profiles[<name>]``) overrides it key by
+    key, so a fleet can mix agent kinds (docs/process/agent-profiles.md)."""
+    base = dict(cfgmod.get("workers.agent", root, {}) or {})
+    name = profile_name(root, worker)
+    if name != DEFAULT_PROFILE:
+        profiles = cfgmod.get("workers.profiles", root, {}) or {}
+        if name not in profiles:
+            raise NotConfigured(f"workers.assign names the profile {name!r} for {worker}, but workers.profiles "
+                                f"has no such profile ({', '.join(sorted(profiles)) or 'none defined'})")
+        base.update(profiles[name] or {})
+    return base
+
+
+def build_cmd(root: Path, *, session_id: str, name: str, attempt_dir: Path, worker: str | None = None) -> list[str]:
+    template = list(agent_settings(root, worker).get("command") or [])
     if not template:
-        raise NotConfigured("workers.agent.command is empty: configure the coding agent the workers run "
-                            "(docs/process/agent-profiles.md)")
-    values = {"session_id": session_id, "name": name, "attempt_dir": str(attempt_dir)}
+        raise NotConfigured(f"the agent command of profile {profile_name(root, worker)!r} is empty: configure the "
+                            "coding agent the workers run (workers.agent.command / workers.profiles, "
+                            "docs/process/agent-profiles.md)")
+    # {scripts}: this system's scripts directory, for profiles that wrap the
+    # agent in an adapter shipped with the system.
+    values = {"session_id": session_id, "name": name, "attempt_dir": str(attempt_dir),
+              "scripts": str(Path(__file__).resolve().parent.parent)}
     return [str(a).format(**values) for a in template]
 
 
-def build_env(root: Path, extra: dict) -> dict:
-    scrub = set(agent_settings(root).get("env_scrub") or [])
+def build_env(root: Path, extra: dict, worker: str | None = None) -> dict:
+    scrub = set(agent_settings(root, worker).get("env_scrub") or [])
     env = {k: v for k, v in os.environ.items() if k not in scrub}
     env.update({k: str(v) for k, v in extra.items() if v is not None})
     return env
@@ -71,15 +97,18 @@ def build_env(root: Path, extra: dict) -> dict:
 class AgentSession:
     """One agent process whose files live in ``out_dir``."""
 
-    def __init__(self, root: Path, *, cwd: Path, out_dir: Path, prompt: str, name: str, env_extra: dict):
+    def __init__(self, root: Path, *, cwd: Path, out_dir: Path, prompt: str, name: str, env_extra: dict,
+                 worker: str | None = None):
         self.root = Path(root)
+        self.worker = worker
+        self.profile = profile_name(root, worker)
         self.cwd = Path(cwd)
         self.out_dir = Path(out_dir)
         self.prompt = prompt
         self.session_id = str(uuid.uuid4())
-        self.cmd = build_cmd(root, session_id=self.session_id, name=name, attempt_dir=self.out_dir)
+        self.cmd = build_cmd(root, session_id=self.session_id, name=name, attempt_dir=self.out_dir, worker=worker)
         self.env_extra = {**env_extra, SESSION_MARKER: self.session_id}
-        self.env = build_env(root, self.env_extra)
+        self.env = build_env(root, self.env_extra, worker)
         self.proc: subprocess.Popen | None = None
 
     @property
@@ -89,9 +118,9 @@ class AgentSession:
     def start(self) -> dict:
         self.out_dir.mkdir(parents=True, exist_ok=True)
         (self.out_dir / "prompt.md").write_text(self.prompt, encoding="utf-8")
-        scrubbed = [k for k in agent_settings(self.root).get("env_scrub") or [] if k in os.environ]
+        scrubbed = [k for k in agent_settings(self.root, self.worker).get("env_scrub") or [] if k in os.environ]
         (self.out_dir / "launch.json").write_text(json.dumps({
-            "cmd": self.cmd, "cwd": str(self.cwd), "session_id": self.session_id,
+            "cmd": self.cmd, "profile": self.profile, "cwd": str(self.cwd), "session_id": self.session_id,
             "env_added": self.env_extra, "env_removed": scrubbed, "started_at": proc.now_iso()}, indent=2) + "\n",
             encoding="utf-8")
         out = open(self.transcript, "ab")
@@ -186,7 +215,7 @@ def parse_transcript(path: Path) -> dict:
     return info
 
 
-def rate_limited(root: Path, info: dict) -> float | None:
+def rate_limited(root: Path, info: dict, worker: str | None = None) -> float | None:
     """Epoch seconds when the agent's usage limit resets, if the session ended
     on one (a rejected rate-limit event, or an error result matching
     ``workers.agent.rate_limit_patterns``); else None."""
@@ -194,7 +223,7 @@ def rate_limited(root: Path, info: dict) -> float | None:
     status = str(rl.get("status") or "")
     res = info.get("result") or {}
     text = str(res.get("result") or "").lower()
-    patterns = [p.lower() for p in agent_settings(root).get("rate_limit_patterns") or []]
+    patterns = [p.lower() for p in agent_settings(root, worker).get("rate_limit_patterns") or []]
     limited = (status and not status.startswith("allowed")) or (
         res.get("is_error") and any(p in text for p in patterns))
     if not limited:

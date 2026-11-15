@@ -435,21 +435,28 @@ class WorktreeIsolation(Base):
 
 # ---------------------------------------------------------------- identity and layout
 class Identity(unittest.TestCase):
-    VENDOR = re.compile("cl" + "aude", re.IGNORECASE)            # not spelled out: this file is scanned too
-    EXCEPTION = "docs/process/agent-profiles.md"                  # the one documented external integration
+    # Agent products the documented profiles name; not spelled out: this file is scanned too.
+    VENDOR = re.compile("cl" + "aude|open" + "code", re.IGNORECASE)
+    # The documented external integrations (WORKER-012): the profile page and
+    # the adapters directory beside the worker code.
+    EXCEPTION = "docs/process/agent-profiles.md"
+    EXCEPTION_DIR = "scripts/workers/profiles/"
+    # Request records quote what a person asked for, verbatim; they are input
+    # to the system, not part of it.
+    INPUT_DIR = "requests/"
     SKIP = {".git", "tmp", "build", "__pycache__", "node_modules"}
 
     def files(self):
         for p in sorted(FRAMEWORK.rglob("*")):
             rel = p.relative_to(FRAMEWORK)
             if p.is_file() and not (set(rel.parts) & self.SKIP) and rel.parts[:2] != (".audit", "runs") \
-                    and rel.parts[:3] != (".agent", "state", "runtime"):
-                yield rel.as_posix(), p
+                    and rel.parts[:3] not in ((".agent", "state", "runtime"), (".agent", "state", "claims")):
+                yield rel.as_posix(), p                  # both are untracked runtime state (.gitignore)
 
     def test_no_vendor_identity_outside_the_documented_exception(self):
         hits = []
         for rel, p in self.files():
-            if rel == self.EXCEPTION:
+            if rel == self.EXCEPTION or rel.startswith((self.EXCEPTION_DIR, self.INPUT_DIR)):
                 continue
             if self.VENDOR.search(rel):
                 hits.append(f"{rel} (name)")
@@ -462,6 +469,10 @@ class Identity(unittest.TestCase):
                 if self.VENDOR.search(line):
                     hits.append(f"{rel}:{n}: {line.strip()[:100]}")
         self.assertEqual(hits, [])
+
+    def test_the_adapters_directory_holds_only_adapters(self):
+        names = sorted(p.name for p in (FRAMEWORK / self.EXCEPTION_DIR).iterdir() if p.name != "__pycache__")
+        self.assertTrue(names and all(n.endswith("_adapter.py") for n in names), names)
 
     def test_the_exception_is_documented_and_only_configuration(self):
         text = (FRAMEWORK / self.EXCEPTION).read_text()

@@ -196,7 +196,21 @@ def run_step(root, name, agent_id, label, command):
     return rc
 
 
-def main():
+def main() -> int:
+    """Run the command, then tell the calling agent when other agents have
+    written to it (COORD-004): on stderr, so parsed output stays unchanged."""
+    code = _main()
+    try:
+        import agent_messages
+        line = agent_messages.notice(proc.repo_root(), os.environ.get("AGENT_ID"))
+        if line:
+            print(line, file=sys.stderr)
+    except Exception:                                        # noqa: BLE001 - coordination never fails a claim command
+        pass
+    return code
+
+
+def _main():
     argv = sys.argv[1:]
     command = []
     if "--" in argv:

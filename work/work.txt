@@ -2,3 +2,4 @@
 
 Format: `WORK-ID | status | title | record | requirements | evidence`
 
+WORK-000001 | completed | Agent coordination: roster, message bus, web control panel, terminal dashboard, agent profiles | completed/WORK-000001-agent-coordination-roster-message-bus-we.md | COORD-001, COORD-002, COORD-003, COORD-004, COORD-005, COORD-006, COORD-007, COORD-008, COORD-009, WORKER-006, WORKER-012 | VER-000001

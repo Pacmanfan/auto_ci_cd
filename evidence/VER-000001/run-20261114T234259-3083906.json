@@ -1,0 +1,247 @@
+{
+ "run_id": "20261114T234259-3083906",
+ "runner_version": 2,
+ "started_at": "2026-11-15T04:47:09.227922+00:00",
+ "wall_seconds": 249.7,
+ "tier": "t2",
+ "scope": "affected",
+ "changes_from": "request 2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.md",
+ "changed": [
+  "CI_CD.md",
+  "docs/README.md",
+  "docs/decisions/ADR-000201-agent-coordination-and-agent-profiles.md",
+  "docs/decisions/decisions.txt",
+  "docs/process/agent-coordination.md",
+  "docs/process/agent-profiles.md",
+  "docs/process/configuration.md",
+  "docs/process/worker-orchestration.md",
+  "docs/process/worker-orchestrator.md",
+  "docs/requirements/agent_coordination.md",
+  "docs/requirements/requirements.txt",
+  "docs/requirements/worker_orchestration.md",
+  "docs/verification/tests.md",
+  "requests/inbox/2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.json",
+  "requests/inbox/2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.md",
+  "requests/processing/2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.json",
+  "requests/processing/2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.md",
+  "scripts/agent_messages.py",
+  "scripts/claim.py",
+  "scripts/devsys.py",
+  "scripts/devsys_config.py",
+  "scripts/drift_detect.py",
+  "scripts/msg.py",
+  "scripts/templates/decisions.txt",
+  "scripts/templates/devsys.json",
+  "scripts/templates/requirements.txt",
+  "scripts/tests/test_agent_coordination.py",
+  "scripts/tests/test_workers.py",
+  "scripts/workers/agent.py",
+  "scripts/workers/overview.py",
+  "scripts/workers/pool.py",
+  "scripts/workers/profiles/README.md",
+  "scripts/workers/profiles/event_stream_adapter.py",
+  "scripts/workers/profiles/opencode_adapter.py",
+  "scripts/workers/prompts/worker.md",
+  "scripts/workers/runner.py",
+  "tools/panel/dash.py",
+  "tools/panel/web_panel.html",
+  "tools/panel/web_panel.py",
+  "work/active/WORK-000001-agent-coordination-roster-message-bus-we.md",
+  "work/work.txt"
+ ],
+ "unmapped": [],
+ "head": "c58c563ab217d498468dfeec06fee21a6ef49d54",
+ "describe": "c58c563",
+ "provenance": {
+  "dirty": true,
+  "dirty_paths": 20,
+  "diff_sha256": "5df9e9ac952c339eb47e13bfc3acdcc9106c67c4fc00623fc13b8ecf058cb6bf",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "git": "git version 2.43.0",
+  "manifest_sha256": "d7ba8cafd90c8171fe8426c2bb6a570b314abeaf3d9b9cde63d8eac937638351",
+  "config_sha256": "a78e7b33ab40a988eda3df291092c6f06d751a96e98749b916ee44a9563e9f1a",
+  "build_system": "none"
+ },
+ "build_dir": "/home/dev/auto_ci_cd/build/debug",
+ "jobs": 8,
+ "host": "dev",
+ "request": "2026-11-14-agent-coordination-agents-work-req-chat-20261114-001.md",
+ "request_fingerprint": "eafdb9646fa4412cb9b58319f950fd570ed2b21126bac5fbd4c9f5dedcbbd7ea",
+ "request_code_paths": [
+  "scripts/agent_messages.py",
+  "scripts/claim.py",
+  "scripts/devsys.py",
+  "scripts/devsys_config.py",
+  "scripts/drift_detect.py",
+  "scripts/msg.py",
+  "scripts/templates/decisions.txt",
+  "scripts/templates/devsys.json",
+  "scripts/templates/requirements.txt",
+  "scripts/tests/test_agent_coordination.py",
+  "scripts/tests/test_workers.py",
+  "scripts/workers/agent.py",
+  "scripts/workers/overview.py",
+  "scripts/workers/pool.py",
+  "scripts/workers/profiles/event_stream_adapter.py",
+  "scripts/workers/profiles/opencode_adapter.py",
+  "scripts/workers/runner.py",
+  "tools/panel/dash.py",
+  "tools/panel/web_panel.html",
+  "tools/panel/web_panel.py"
+ ],
+ "allow_stale": false,
+ "classification": "PASS",
+ "warnings": [
+  "--build: build.system is 'none' in devsys.json; nothing was built"
+ ],
+ "groups": [
+  {
+   "suite": "devsys",
+   "group": "structure",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.11875316698569804,
+   "wall": 0.11875316698569804,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "bash scripts/verify_development_system.sh",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "drift",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.2176288699847646,
+   "wall": 0.2176288699847646,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/drift_detect.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "doc_integrity",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.1689197459782008,
+   "wall": 0.1689197459782008,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/doc_integrity.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "invariants",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.12010448699584231,
+   "wall": 0.12010448699584231,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/invariant_check.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "scripts",
+   "group": "unit",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 249.68773722401238,
+   "wall": 249.68773722401238,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "input scripts/agent_messages.py (+21)"
+   ],
+   "command": "python3 -m unittest discover -s scripts/tests",
+   "status": "PASS"
+  }
+ ],
+ "jobs_detail": [
+  {
+   "label": "devsys/structure",
+   "status": "PASS",
+   "seconds": 0.12,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/59-3083906/002/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/drift",
+   "status": "PASS",
+   "seconds": 0.22,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/59-3083906/004/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/doc_integrity",
+   "status": "PASS",
+   "seconds": 0.17,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/59-3083906/005/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/invariants",
+   "status": "PASS",
+   "seconds": 0.12,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/59-3083906/003/output.log",
+   "cases": []
+  },
+  {
+   "label": "scripts/unit",
+   "status": "PASS",
+   "seconds": 249.69,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/59-3083906/001/output.log",
+   "cases": []
+  }
+ ]
+}

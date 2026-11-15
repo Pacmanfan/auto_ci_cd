@@ -35,7 +35,8 @@ docs/architecture/              current system explanation
 * `docs/process/recovery.md` — failure recovery; `docs/process/escalation.md` — human escalation; `docs/process/process-protection.md` — process protection.
 * `docs/process/historical-id-collisions.md` — how an accepted historical id collision is declared and how `drift_detect` classifies a duplicate (ADR-000149).
 * `docs/process/worker-orchestrator.md` — the **Worker Orchestrator**: workers that execute this system's requests unattended (one active request per worker, claims through the framework, gated completion, verified recovery), `scripts/devsys.py workers | queue | priority`, the Qt control panel `tools/worker-panel` (WORKER-001..013, `docs/requirements/worker_orchestration.md`, ADR-000200).
-* `docs/process/agent-profiles.md` — the agent protocol workers speak, and the one documented vendor-specific profile (configuration only).
+* `docs/process/agent-profiles.md` — the agent protocol workers speak, agent profiles per worker slot (`workers.profiles` / `workers.assign`), and the documented vendor-specific profiles (configuration only; adapters in `scripts/workers/profiles/`).
+* `docs/process/agent-coordination.md` — **agent coordination**: the roster of agents with friendly names, the messages agents and the operator send each other (`scripts/msg.py`), the web control panel (`tools/panel/web_panel.py`) and the terminal dashboard (`tools/panel/dash.py`), shared across git worktrees (COORD-001..009, `docs/requirements/agent_coordination.md`, ADR-000201).
 * `docs/history/worker-orchestrator-merge.md` — historical: how the former external orchestrator was imported (phase 1) and merged (phase 2).
 * `docs/verification/tests.md` — canonical verification commands.
 * `scripts/test_manifest.json` + `scripts/run_tests.py` — the registered test suites and the tiered, affected-test orchestrator (REQ-DEVOPS-046, ADR-000186).

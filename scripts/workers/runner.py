@@ -162,6 +162,18 @@ def _work_dir(root: Path, name: str, agent_id: str) -> Path:
     return Path(proc.create_worktree(root, name, agent_id)["path"])
 
 
+def _announce(root: Path, wid: str, agent_id: str, profile: str, cwd: Path, request_id: str) -> None:
+    """Put the worker's agent on the coordination roster (name, profile, the
+    checkout or worktree it works in), so other agents and the panels can
+    address it. Coordination is an aid: a failure here never fails an attempt."""
+    try:
+        import agent_messages
+        agent_messages.register(root, agent_id, profile=profile, worker=wid, owner_pid=os.getpid(), cwd=cwd,
+                                request=request_id)
+    except Exception as e:                                   # noqa: BLE001
+        state.event(root, wid, "coordination.register_failed", error=str(e)[:200])
+
+
 def start_attempt(root: Path, wid: str, name: str) -> dict:
     rec = state.load(root, wid)
     req = request_info(root, name)
@@ -189,7 +201,7 @@ def start_attempt(root: Path, wid: str, name: str) -> dict:
            "DEVSYS_WORKER_ATTEMPT": aid, "DEVSYS_WORKER_REPORT": str(report_path),
            "DEVSYS_WORKER_REQUEST_PATH": req["path"],
            "DEVSYS_SCRIPTS": str(prompt.agent_scripts_dir(root, cwd))}
-    sess = agent.AgentSession(root, cwd=cwd, out_dir=adir, prompt=text, name=f"{wid} {aid}", env_extra=env)
+    sess = agent.AgentSession(root, cwd=cwd, out_dir=adir, prompt=text, name=f"{wid} {aid}", env_extra=env, worker=wid)
     attempt = {"attempt_id": aid, "worker_id": wid, "request": name, "request_id": req["request_id"],
                "request_title": req["title"], "agent_id": rec["agent_id"], "status": "RUNNING", "result": None,
                "started_at": proc.now_iso(), "ended_at": None, "deadline_epoch": time.time() + runtime_min * 60,
@@ -209,7 +221,8 @@ def start_attempt(root: Path, wid: str, name: str) -> dict:
                          "session": attempt["session"]},
                  counters={"attempts": seq})
     state.event(root, wid, "attempt.started", request_id=req["request_id"], attempt=aid,
-                pid=attempt["session"]["pid"], cwd=str(cwd))
+                pid=attempt["session"]["pid"], cwd=str(cwd), profile=sess.profile)
+    _announce(root, wid, rec["agent_id"], sess.profile, cwd, req["request_id"])
     attempt["_popen"] = sess.proc
     return attempt
 
@@ -275,7 +288,7 @@ def finish_attempt(root: Path, wid: str, attempt: dict, w: dict) -> dict:
                                                    include_request_files=False)
     locs = proc.locate_request(root, attempt["request"])
     request_state = locs[0][0] if locs else None
-    reset_at = agent.rate_limited(root, info)
+    reset_at = agent.rate_limited(root, info, wid)
     res_ev = info.get("result") or {}
     stale = w.get("stale")
     interruption = None

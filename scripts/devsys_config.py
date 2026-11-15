@@ -247,6 +247,12 @@ DEFAULTS: dict = {
             "rate_limit_patterns": ["usage limit", "rate limit", "limit reached"],
             "prompt": "scripts/workers/prompts/worker.md",
         },
+        # Mixed fleets: named profiles override workers.agent key by key
+        # ({"<name>": {"command": [...], "env_scrub": [...]}}), and assign
+        # maps a worker slot to a profile ({"worker-02": "<name>"}); a slot
+        # without an assignment runs workers.agent (profile "default").
+        "profiles": {},
+        "assign": {},
         "validation": [
             {"name": "git-sanity", "builtin": "git_sanity"},
             {"name": "request-state", "builtin": "request_state"},
@@ -428,6 +434,22 @@ def validate(root: Path | None = None) -> list[str]:
     cmd = (w.get("agent") or {}).get("command")
     if not isinstance(cmd, list) or not all(isinstance(a, str) for a in cmd):
         problems.append("workers.agent.command is not a list of strings")
+    profiles = w.get("profiles") or {}
+    if not isinstance(profiles, dict):
+        problems.append("workers.profiles is not an object of named profiles")
+        profiles = {}
+    for pname, prof in profiles.items():
+        pcmd = prof.get("command") if isinstance(prof, dict) else None
+        if not isinstance(prof, dict) or (pcmd is not None and (
+                not isinstance(pcmd, list) or not all(isinstance(a, str) for a in pcmd))):
+            problems.append(f"workers.profiles.{pname} is not an object whose command is a list of strings")
+    assign = w.get("assign") or {}
+    if not isinstance(assign, dict):
+        problems.append("workers.assign is not an object of worker id -> profile name")
+        assign = {}
+    for slot, pname in assign.items():
+        if pname != "default" and pname not in profiles:
+            problems.append(f"workers.assign.{slot} names the profile {pname!r}, which workers.profiles does not define")
     if not (root / str(get("paths.project_root", root, "."))).is_dir():
         problems.append(f"paths.project_root {get('paths.project_root', root)!r} is not a directory")
     for key in ("stale_hours", "lock_timeout_seconds", "dead_grace_minutes", "heartbeat_interval_seconds"):
@@ -467,7 +489,9 @@ def placeholders(root: Path | None = None) -> list[str]:
         out.append("build.system is 'none' (no build integration)")
     if not cfg.get("invariants"):
         out.append("invariants is empty (no architecture rules)")
-    if not ((cfg.get("workers") or {}).get("agent") or {}).get("command"):
+    wk = cfg.get("workers") or {}
+    if not (wk.get("agent") or {}).get("command") and not any(
+            (p or {}).get("command") for p in (wk.get("profiles") or {}).values()):
         out.append("workers.agent.command is empty (workers cannot start an agent)")
     return out
 
