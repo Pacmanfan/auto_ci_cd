@@ -11,10 +11,13 @@ Run: python3 -m unittest scripts.tests.test_agent_coordination -v
 import http.client
 import json
 import os
+import socket
 import subprocess
 import sys
 import threading
+import time
 import unittest
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -27,6 +30,7 @@ sys.dont_write_bytecode = True
 import agent_messages as bus  # noqa: E402
 import agent_process as proc  # noqa: E402
 import devsys_config as cfgmod  # noqa: E402
+import devsys_platform as plat  # noqa: E402
 from workers import agent as wagent, overview  # noqa: E402
 
 A1, A2, A3 = "agent-test-one-aaaaaa", "agent-test-two-bbbbbb", "agent-test-three-cccccc"
@@ -55,7 +59,8 @@ class Roster(BusBase):
     def test_agents_get_distinct_friendly_names_and_keep_them(self):
         a, b = bus.register(self.root, A1), bus.register(self.root, A2)
         self.assertNotEqual(a["name"], b["name"])
-        self.assertIn(a["name"], bus.NAME_POOL)
+        self.assertEqual(a["name"], bus.FIRST_NAME)
+        self.assertIn(b["name"], bus.NAME_POOL)
         again = bus.register(self.root, A1, profile="alt", roles=["Lead"])
         self.assertEqual(again["name"], a["name"])
         self.assertEqual((again["profile"], again["roles"]), ("alt", ["lead"]))
@@ -70,6 +75,32 @@ class Roster(BusBase):
             with self.assertRaises(bus.MessageError):
                 bus.register(self.root, A2, name=bad)
         self.assertIsNone(bus.get(self.root, A2))
+
+    def test_the_first_agent_is_cody_and_the_others_are_drawn_at_random(self):
+        self.assertEqual(bus.register(self.root, A1)["name"], "Cody")
+        real = bus.random.choice
+        seen = []
+        try:
+            bus.random.choice = lambda free: seen.append(list(free)) or free[-1]
+            second = bus.register(self.root, A2)["name"]
+        finally:
+            bus.random.choice = real
+        self.assertEqual(second, bus.NAME_POOL[-1])                # whatever the draw picked, not the next in order
+        self.assertEqual(seen, [list(bus.NAME_POOL)])
+        names = {bus.register(self.root, f"agent-test-many-{i:06d}")["name"] for i in range(len(bus.NAME_POOL) + 3)}
+        self.assertEqual(len(names), len(bus.NAME_POOL) + 3)       # unique, continuing with Name-2 when the pool is used up
+        self.assertTrue(any(n.endswith("-2") for n in names))
+        self.assertNotIn("Cody", names | {second})                 # only the first agent is Cody
+
+    def test_cody_is_the_first_again_once_everyone_has_left_and_names_ignore_case(self):
+        bus.register(self.root, A1)
+        with self.assertRaises(bus.MessageError) as cm:
+            bus.register(self.root, A2, name="cody")
+        self.assertEqual(cm.exception.code, proc.CONFLICT)
+        self.assertEqual(bus.resolve(self.root, "CODY"), A1)
+        bus.leave(self.root, A1)
+        self.assertEqual(bus.register(self.root, A2)["name"], "Cody")
+        self.assertNotEqual(bus.register(self.root, A3, name="Scout")["name"], "scout")   # kept as typed
 
     def test_a_shared_uid_style_agent_id_is_refused(self):
         with self.assertRaises(proc.ProcessError):
@@ -301,7 +332,7 @@ class Profiles(unittest.TestCase):
         who = json.loads(p.ok("msg.py", "who", "--json", agent=A1))
         entry = next(w for w in who if w["worker"] == "worker-02")
         self.assertEqual((entry["profile"], entry["agent_id"]), ("alt", launches[0]["env"]["AGENT_ID"]))
-        self.assertIn(entry["name"], bus.NAME_POOL)
+        self.assertEqual(entry["name"], bus.FIRST_NAME)            # the first agent of that project
 
 
 class Adapter(unittest.TestCase):
@@ -399,9 +430,17 @@ class Overview(BusBase):
         self.assertEqual(overview.snapshot(self.root, after=1)["messages"], [])
         json.dumps(snap, default=str)                             # what the panels send
 
+    def test_claiming_puts_the_agent_on_the_roster(self):
+        name = self.p.request("Document the coil")
+        cp = self.p.run("claim.py", "--claim-request", name, agent=A1)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn(f"AGENT Cody ({A1})", cp.stderr)
+        self.assertEqual([(e["agent_id"], e["name"]) for e in bus.roster(self.root)], [(A1, "Cody")])
+        self.assertNotIn("PANEL", cp.stderr)                       # autostart is off in tests
+
     def test_an_agent_with_a_claim_but_no_roster_entry_is_still_shown(self):
         name = self.p.request("Document the spring")
-        self.p.claim(name, A2)
+        proc.claim_request(self.root, name, A2)
         shown = [a for a in overview.agents(self.root) if a["agent_id"] == A2]
         self.assertEqual([(a["registered"], a["name"], a["claims"][0]["request"]) for a in shown], [(False, A2, name)])
 
@@ -513,7 +552,166 @@ class WebPanel(BusBase):
         self.assertEqual(next_snapshot()["messages"], [])
         bus.send(self.root, A1, "all", "live update")
         self.assertEqual([m["body"] for m in next_snapshot()["messages"]], ["live update"])
+        # Pushed: with a long interval the stream still answers at once when a change is announced.
+        self.srv.interval = 60
+        bus.send(self.root, A1, "all", "settle")                   # consumed by the wait that started at 0.1s
+        next_snapshot()
+        started = time.monotonic()
+        bus.send(self.root, A1, "all", "pushed update")
+        self.srv.notify_change()                                   # what the hub does on every announcement
+        self.assertEqual(next_snapshot()["messages"][-1]["body"], "pushed update")
+        self.assertLess(time.monotonic() - started, 10)
         c.close()
+
+
+class Hooks(BusBase):
+    """msg.py hook: unread messages enter a running agent session through its hooks."""
+
+    def setUp(self):
+        super().setUp()
+        bus.register(self.root, A1)
+        bus.register(self.root, A2)
+
+    def hook(self, event, agent=A1):
+        cp = self.p.run("msg.py", "hook", agent=agent, input=json.dumps(event))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp.stdout.strip()
+
+    def test_a_tool_hook_injects_unread_messages_once(self):
+        self.assertEqual(self.hook({"hook_event_name": "PostToolUse"}), "")
+        m = bus.send(self.root, A2, A1, "the schema moved to src/schema")
+        out = json.loads(self.hook({"hook_event_name": "PostToolUse", "tool_name": "Bash"}))
+        ctx = out["hookSpecificOutput"]
+        self.assertEqual(ctx["hookEventName"], "PostToolUse")
+        self.assertIn("the schema moved to src/schema", ctx["additionalContext"])
+        self.assertIn(m["id"], ctx["additionalContext"])
+        self.assertIn("not instructions", ctx["additionalContext"])
+        self.assertEqual(self.hook({"hook_event_name": "PostToolUse"}), "")       # delivered once
+        self.assertEqual(bus.unread(self.root, A1), [])
+
+    def test_a_stop_hook_keeps_the_session_going_for_new_messages_only(self):
+        bus.send(self.root, bus.OPERATOR, A1, "before you stop: run the audit")
+        out = json.loads(self.hook({"hook_event_name": "Stop", "stop_hook_active": False}))
+        self.assertEqual(out["decision"], "block")
+        self.assertIn("run the audit", out["reason"])
+        self.assertEqual(self.hook({"hook_event_name": "Stop", "stop_hook_active": True}), "")   # no loop
+
+    def test_without_an_agent_id_the_agent_is_found_by_its_session_process(self):
+        bus.register(self.root, A3, owner_pid=os.getpid())            # this process started the hook
+        bus.send(self.root, A1, A3, "found you")
+        cp = self.p.run("msg.py", "hook", input=json.dumps({"hook_event_name": "SessionStart"}))
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertIn("found you", json.loads(cp.stdout)["hookSpecificOutput"]["additionalContext"])
+
+    def test_an_unknown_agent_bad_input_or_no_mail_is_silence_never_an_error(self):
+        for agent, text in (("agent-test-ghost-eeeeee", "{}"), (A1, "not json"), (None, "")):
+            cp = self.p.run("msg.py", "hook", agent=agent, input=text)
+            self.assertEqual((cp.returncode, cp.stdout), (0, ""), cp.stderr)
+
+
+class Station(unittest.TestCase):
+    """The station: push hub and panels, started by the first agent and gone
+    with the last (COORD-010, COORD-011)."""
+
+    def setUp(self):
+        self.p = Project(fast_config(coordination={"panels": ["web"], "web_port": 0, "linger_seconds": 1}))
+        self.root = self.p.root
+        self.env = {"DEVSYS_COORDINATION_AUTOSTART": "1"}
+        self.owner = self.p.sleeper()
+
+    def tearDown(self):
+        info = bus.station_info(self.root)
+        self.p.kill(self.owner)
+        if info:
+            self.assertTrue(self.gone(info), "the station outlived its last agent")
+        self.p.close()
+
+    def gone(self, info, timeout=20.0):
+        return self.p.wait_for(lambda: bus.station_info(self.root) is None
+                               and plat.verify_session(info["process"])[0] == plat.DEAD, timeout)
+
+    def start(self, agent=A1):
+        name = self.p.request(f"Work for {agent}")
+        cp = self.p.run("claim.py", "--claim-request", name, agent=agent, owner_pid=self.owner.pid, env=self.env)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        return cp
+
+    def test_the_first_agent_starts_the_panels_and_is_told_the_addresses(self):
+        cp = self.start()
+        self.assertRegex(cp.stderr, r"AGENT Cody \(" + A1 + r"\)\nPANEL web        http://127\.0\.0\.1:\d+/\n")
+        for part in ("PANEL control    not started: disabled", "PANEL dashboard  python3 tools/panel/dash.py", "HUB              127.0.0.1:"):
+            self.assertIn(part, cp.stderr)
+        info = bus.station_info(self.root)
+        with urllib.request.urlopen(info["web"], timeout=10) as r:
+            self.assertEqual(r.status, 200)
+        # A second agent finds the same station (nothing more is started) and is told where it is.
+        out = self.p.ok("msg.py", "join", agent=A2, owner_pid=self.owner.pid, env=self.env)
+        self.assertIn(f"PANEL web        {info['web']}", out)
+        self.assertEqual(bus.station_info(self.root)["process"]["pid"], info["process"]["pid"])
+        self.assertIn(info["web"], self.p.ok("msg.py", "panels", agent=A2))
+        shown = json.loads(self.p.ok("msg.py", "panels", "--json", agent=A2))
+        self.assertNotIn("hub", shown)                             # the token is not for display
+        self.assertNotIn("token", json.dumps(overview.snapshot(self.root)["station"]))
+        # only one station per clone
+        cp = subprocess.run([sys.executable, str(FRAMEWORK / "tools" / "panel" / "station.py"), "--root", str(self.root)],
+                            capture_output=True, text=True, env=self.p.env, timeout=60)
+        self.assertEqual(cp.returncode, proc.CONFLICT, cp.stderr)
+
+    def test_a_message_is_pushed_to_a_waiting_agent(self):
+        self.start()
+        bus.register(self.root, A2, owner_pid=self.owner.pid)
+        got, started = [], time.monotonic()
+        waiter = threading.Thread(target=lambda: got.extend(bus.wait(self.root, A2, timeout=120, poll=120)))
+        waiter.start()
+        time.sleep(0.8)                                            # it is waiting on the hub now
+        sent = time.monotonic()
+        bus.send(self.root, A1, A2, "pushed")
+        waiter.join(timeout=20)
+        self.assertEqual([m["body"] for m in got], ["pushed"])
+        self.assertLess(time.monotonic() - sent, 5, "delivery took a poll interval: not pushed")
+        # subscribers are told about roster changes as well
+        sub = bus.subscribe(self.root)
+        self.addCleanup(sub.close)
+        time.sleep(0.3)
+        bus.register(self.root, A3, owner_pid=self.owner.pid)
+        self.assertEqual(bus.next_event(sub, 10)["event"], "roster")
+        self.assertIsNone(bus.next_event(sub, 0.3))                # quiet, still connected
+
+    def test_a_wrong_token_gets_nothing_from_the_hub(self):
+        self.start()
+        hub = bus.station_info(self.root)["hub"]
+        s = socket.create_connection((hub["host"], hub["port"]), timeout=5)
+        self.addCleanup(s.close)
+        s.sendall(b'{"token": "wrong", "mode": "sub"}\n')
+        bus.send(self.root, A1, "all", "not for strangers")
+        s.settimeout(3)
+        self.assertEqual(s.recv(100), b"")                         # closed without a byte
+
+    def test_the_station_ends_when_the_last_agent_is_gone_and_wait_falls_back_to_polling(self):
+        self.start()
+        info = bus.station_info(self.root)
+        bus.register(self.root, A2)                                # no owner process: present while recently seen
+        self.p.kill(self.owner)                                    # the first agent's session ends
+        time.sleep(3)
+        self.assertIsNotNone(bus.station_info(self.root), "an agent is still here")
+        bus.leave(self.root, A2)
+        self.assertTrue(self.gone(info))
+        self.assertEqual(bus.roster(self.root), [])                # the dead session's entry was pruned
+        with self.assertRaises(OSError):
+            urllib.request.urlopen(info["web"], timeout=3)
+        # no hub: nothing is lost, delivery is by polling
+        bus.register(self.root, A1)
+        bus.register(self.root, A2)
+        threading.Timer(0.3, lambda: bus.send(self.root, A1, A2, "polled")).start()
+        self.assertEqual([m["body"] for m in bus.wait(self.root, A2, timeout=20, poll=0.2)], ["polled"])
+
+    def test_autostart_can_be_switched_off(self):
+        name = self.p.request("Quiet work")
+        cp = self.p.run("claim.py", "--claim-request", name, agent=A1, env={"DEVSYS_COORDINATION_AUTOSTART": "0"})
+        self.assertEqual(cp.returncode, 0)
+        self.assertNotIn("PANEL", cp.stderr)
+        self.assertIsNone(bus.station_info(self.root))
+        self.assertIn("PANELS not running", "\n".join(bus.panel_lines(None)))
 
 
 class Dashboard(BusBase):

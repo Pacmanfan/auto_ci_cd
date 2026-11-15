@@ -64,6 +64,22 @@ class Panel(ThreadingHTTPServer):
         self.interval = interval
         self.closing = threading.Event()
         self.loopback = addr[0] in LOOPBACK
+        # Push: the hub (tools/panel/station.py) announces every message and
+        # roster change; the event streams wait on this instead of sleeping.
+        self.changed = threading.Condition()
+        self.generation = 0
+
+    def notify_change(self) -> None:
+        with self.changed:
+            self.generation += 1
+            self.changed.notify_all()
+
+    def wait_change(self, seen: int, timeout: float) -> int:
+        """Block until something was announced after ``seen`` (or ``timeout``)."""
+        with self.changed:
+            if self.generation == seen:
+                self.changed.wait(timeout)
+            return self.generation
 
     def url(self) -> str:
         host, port = self.server_address[:2]
@@ -151,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
         self.close_connection = True
-        last, quiet = None, 0.0
+        last, quiet, seen = None, 0.0, self.server.generation
         try:
             while not self.server.closing.is_set():
                 snap = overview.snapshot(self.server.root)
@@ -163,7 +179,9 @@ class Handler(BaseHTTPRequestHandler):
                     quiet = 0.0
                     self.wfile.write(b": keep-alive\n\n")
                 self.wfile.flush()
-                self.server.closing.wait(self.server.interval)
+                # Woken at once by an announced change; the interval only
+                # covers what nobody announces (worker status, elapsed time).
+                seen = self.server.wait_change(seen, self.server.interval)
                 quiet += self.server.interval
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass                                             # the browser went away
@@ -228,6 +246,10 @@ def main(argv=None) -> int:
         print(f"web-panel: WARNING: listening on {a.host}: anyone who can reach this port and has the token "
               "controls the agents", file=sys.stderr)
     print(f"web-panel: {srv.url()}   (root {root}; Ctrl-C stops the panel, not the workers)", flush=True)
+    import agent_messages
+    stop = threading.Event()
+    threading.Thread(target=agent_messages.follow, args=(root, lambda _ev: srv.notify_change(), stop),
+                     name="hub-follow", daemon=True).start()
     if a.open:
         threading.Timer(0.3, webbrowser.open, args=(srv.url(),)).start()
     try:
@@ -235,7 +257,9 @@ def main(argv=None) -> int:
     except KeyboardInterrupt:
         pass
     finally:
+        stop.set()
         srv.closing.set()
+        srv.notify_change()
         srv.server_close()
         time.sleep(0.05)
     return 0

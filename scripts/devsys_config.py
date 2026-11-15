@@ -259,6 +259,17 @@ DEFAULTS: dict = {
             {"name": "commit-binding", "builtin": "commit_binding"},
         ],
     },
+    # Agent coordination (scripts/agent_messages.py, tools/panel/station.py,
+    # docs/process/agent-coordination.md): the first agent starts the station
+    # (push hub and panels); it ends when the last agent is gone.
+    "coordination": {
+        "autostart": True,              # False: start tools/panel/station.py by hand
+        "panels": ["web", "qt"],        # which panels the station starts
+        "web_host": "127.0.0.1",
+        "web_port": 8765,               # taken: the station picks a free port and prints it
+        "linger_seconds": 20,           # how long the station stays after the last agent left
+        "idle_minutes": 30,             # an agent without a verifiable owner process counts as here this long
+    },
     "drift": {
         # Level of a request / work item completed without the tooling's
         # verification (no resolution in the sidecar, no PASS gate record):

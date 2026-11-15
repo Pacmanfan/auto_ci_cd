@@ -130,6 +130,13 @@ class Dash:
         self.root, self.interval = root, interval
         self.selected, self.scroll, self.note = 0, 0, HELP
         self.snap = overview.snapshot(root)
+        # Push: a hub announcement (a message, an agent joining) refreshes at once.
+        import threading
+        import agent_messages
+        self.dirty = threading.Event()
+        self._stop = threading.Event()
+        threading.Thread(target=agent_messages.follow, args=(root, lambda _ev: self.dirty.set(), self._stop),
+                         name="hub-follow", daemon=True).start()
 
     def worker(self) -> str | None:
         ws = self.snap["pool"]["workers"]
@@ -241,7 +248,8 @@ class Dash:
         curses.use_default_colors()
         last = 0.0
         while True:
-            if time.monotonic() - last >= self.interval:
+            if time.monotonic() - last >= self.interval or self.dirty.is_set():
+                self.dirty.clear()
                 self.snap, last = overview.snapshot(self.root), time.monotonic()
             self.draw(scr)
             scr.timeout(250)
@@ -275,7 +283,8 @@ def plain_loop(dash: "Dash", width: int = 0) -> None:
 
     last = 0.0
     while True:
-        if time.monotonic() - last >= dash.interval:
+        if time.monotonic() - last >= dash.interval or dash.dirty.is_set():
+            dash.dirty.clear()
             dash.snap, last = overview.snapshot(dash.root), time.monotonic()
             size = shutil.get_terminal_size((110, 40))
             w = width or size.columns - 1

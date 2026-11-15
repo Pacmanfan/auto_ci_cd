@@ -202,7 +202,19 @@ def main() -> int:
     code = _main()
     try:
         import agent_messages
-        line = agent_messages.notice(proc.repo_root(), os.environ.get("AGENT_ID"))
+        root = proc.repo_root()
+        if code == 0 and "--claim-request" in sys.argv and os.environ.get("AGENT_ID"):
+            # Claiming is how a session starts work: put it on the roster. The
+            # first agent starts the station (push hub, panels) and is told where.
+            known = agent_messages.get(root, os.environ["AGENT_ID"]) is not None
+            entry = agent_messages.register(root, os.environ["AGENT_ID"], owner_pid=proc.owner_pid_from_env(),
+                                            cwd=os.getcwd())
+            if not known:
+                print(f"AGENT {entry['name']} ({entry['agent_id']})", file=sys.stderr)
+            if (entry.get("_station") or {}).get("started"):
+                for text in agent_messages.panel_lines(entry["_station"]):
+                    print(text, file=sys.stderr)
+        line = agent_messages.notice(root, os.environ.get("AGENT_ID"))
         if line:
             print(line, file=sys.stderr)
     except Exception:                                        # noqa: BLE001 - coordination never fails a claim command

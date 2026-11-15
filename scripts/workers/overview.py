@@ -87,6 +87,16 @@ def agents(root: Path) -> list[dict]:
     return out
 
 
+def _station(root: Path) -> dict | None:
+    """The running station without its hub token (the snapshot goes to browsers)."""
+    info = bus.station_info(root)
+    if not info:
+        return None
+    return {"pid": (info.get("process") or {}).get("pid"), "started_at": info.get("started_at"),
+            "web": info.get("web"), "qt": info.get("qt"),
+            "hub": {k: (info.get("hub") or {}).get(k) for k in ("host", "port")}}
+
+
 def snapshot(root: Path, *, messages: int = 80, after: int = 0) -> dict:
     """Everything the panels show. ``after``: only messages newer than this
     sequence number (a client that already has the earlier ones)."""
@@ -95,6 +105,7 @@ def snapshot(root: Path, *, messages: int = 80, after: int = 0) -> dict:
     return {"at": proc.now_iso(), "project": cfgmod.get("project.name", root, ""),
             "system_root": st["system_root"], "pool": st, "agents": agents(root), "worktrees": worktrees(root),
             "messages": msgs, "last_seq": bus.last_seq(root), "kinds": list(bus.KINDS),
+            "station": _station(root),
             "priorities": list(proc.PRIORITIES)}
 
 

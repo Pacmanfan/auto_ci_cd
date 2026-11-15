@@ -20,6 +20,14 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# A test run started from an agent's session inherits that session's identity
+# (AGENT_ID, AGENT_OWNER_PID): tests that create their own agents would then
+# act as the session, or be "owned" by its live process. And no test starts
+# the coordination station (panels, hub) by joining the roster.
+for _name in ("AGENT_ID", "AGENT_OWNER_PID"):
+    os.environ.pop(_name, None)
+os.environ["DEVSYS_COORDINATION_AUTOSTART"] = "0"
+
 SCRIPTS = Path(__file__).resolve().parents[1]
 FRAMEWORK = SCRIPTS.parent
 sys.path.insert(0, str(SCRIPTS))

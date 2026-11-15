@@ -16,6 +16,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+# Not the calling session's agent identity, and no coordination station (see devsys_testlib).
+for _name in ("AGENT_ID", "AGENT_OWNER_PID"):
+    __import__("os").environ.pop(_name, None)
+__import__("os").environ["DEVSYS_COORDINATION_AUTOSTART"] = "0"
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]

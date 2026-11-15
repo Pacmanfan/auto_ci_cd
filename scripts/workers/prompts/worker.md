@@ -88,7 +88,8 @@ the human operator can write to each other (`docs/process/agent-coordination.md`
   answers. Kinds: note, question, answer, status, handoff, path-request, alert.
 - Blocked by a path or request another agent owns: send its owner a
   `path-request` saying what you need and why, then
-  `${scripts}/msg.py wait --timeout 300`. Without an answer, report BLOCKED
+  `${scripts}/msg.py wait --timeout 300` (the answer is pushed to you: the
+  command returns the moment it arrives). Without an answer, report BLOCKED
   with the owner as before. Answer the questions others send you.
 - Tell the others what they need to know: a `status` to `all` when you change
   something they build on, a `handoff` when you leave work for someone else.

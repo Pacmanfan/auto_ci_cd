@@ -3,7 +3,7 @@
 **Status:** ACTIVE
 **Owner:** Development tooling (`scripts/agent_messages.py`, `scripts/msg.py`, `scripts/workers/overview.py`, `tools/panel/web_panel.py`, `tools/panel/dash.py`)
 **Depends On:** `development_operations.md` (REQ-DEVOPS-016 claims, REQ-DEVOPS-014 intake, REQ-DEVOPS-025 recovery), `worker_orchestration.md` (WORKER-005 isolation, WORKER-010 status, WORKER-012 vendor-neutral system)
-**Decision:** ADR-000201
+**Decision:** ADR-000201, ADR-000202 (station, push hub, hooks, names)
 **System documentation:** `docs/process/agent-coordination.md`
 
 Claims keep concurrent agents apart. Coordination lets them, and the human
@@ -15,13 +15,17 @@ single source of truth.
 
 - Every agent that takes part SHALL have one roster entry keyed by its
   session-unique agent id, with a friendly name that is unique among the
-  entries. A name SHALL be allocated at first registration, or requested
-  explicitly; a name held by another agent, and the reserved words `all` and
-  `operator`, SHALL be refused.
+  entries, ignoring case. A name SHALL be allocated at first registration,
+  or requested explicitly; a name held by another agent, and the reserved
+  words `all` and `operator`, SHALL be refused.
+- The first agent registered on an empty roster SHALL be named `Cody`.
+  Every other allocated name SHALL be drawn at random from the free names
+  of the pool (continuing with numbered names when the pool is used up).
 - An entry SHALL record the agent's profile, roles, worker slot (when it is
   a worker's agent), working directory, git worktree and branch.
 - A worker SHALL register its agent when an attempt starts. Any other agent
-  is registered by `msg.py join`, or on its first `send` / `inbox`.
+  is registered by `claim.py --claim-request` (under `$AGENT_ID`),
+  `msg.py join`, or on its first `send` / `inbox`.
 - Liveness SHALL be verified from the recorded owner process (ALIVE / DEAD /
   UNKNOWN); a record alone is never proof. Only entries verified DEAD may be
   pruned.
@@ -57,7 +61,8 @@ single source of truth.
   has not been shown, once (`--peek` leaves them unread). An agent SHALL NOT
   receive its own broadcast, nor messages sent before it registered.
 - `msg.py wait` SHALL block until a message for the agent arrives, or exit
-  4 after its timeout.
+  4 after its timeout; `msg.py listen` SHALL print the agent's messages as
+  they arrive. Both are pushed (COORD-010) and fall back to polling.
 - Because an agent session cannot be interrupted from outside, `claim.py`
   SHALL print one `MESSAGES:` line on stderr after any command while the
   calling agent (`$AGENT_ID`) has unread messages. Its stdout and exit code
@@ -110,8 +115,53 @@ standard library only), refresh it, and offer the actions of COORD-007 from
 the keyboard. `--once` SHALL print one frame (or, with `--json`, the
 snapshot) without a terminal, with no line wider than the given width.
 
+## COORD-010 — Push delivery through the hub
+
+- While a station runs, a sender SHALL announce every message, and every
+  roster change, on the station's hub after writing it. Whoever waits on
+  the hub (`msg.py wait` / `listen`, the web panel's event stream, the
+  terminal dashboard) SHALL be woken by the announcement instead of a
+  timer.
+- The hub SHALL be a loopback socket that requires the station's token and
+  carries announcements only. The message log stays the only record: with
+  no hub, or a hub that went away, nothing is lost and waiters poll.
+- An announcement SHALL never fail a send or a lifecycle command.
+
+## COORD-011 — The station starts with the first agent and ends with the last
+
+- When an agent joins the roster and no station runs, the station
+  (`tools/panel/station.py`) SHALL be started, detached, unless
+  `coordination.autostart` is false or `DEVSYS_COORDINATION_AUTOSTART=0`.
+  At most one station SHALL run per clone.
+- The station SHALL run the hub and the panels named in
+  `coordination.panels`: the web control panel (on `coordination.web_port`,
+  or a free port when it is taken) and the Qt control panel (when a display
+  and PySide6 are available; otherwise the reason is recorded).
+- The agent whose command started the station SHALL be shown the addresses:
+  the web panel URL, the control panel's state, the dashboard command and
+  the hub address. `msg.py panels` SHALL show them at any time, and
+  `msg.py join` whenever a station runs. The hub token SHALL NOT be shown
+  and SHALL NOT be part of the snapshot.
+- The station SHALL end `coordination.linger_seconds` after no agent is
+  present. An agent is present while its owner process is verified ALIVE,
+  or, when that cannot be verified, while it was seen within
+  `coordination.idle_minutes`. On ending, the station SHALL close the
+  panels it started and prune roster entries verified DEAD.
+
+## COORD-012 — Into a running session through hooks
+
+`msg.py hook` SHALL read one hook event (JSON) on stdin and, when the agent
+has unread messages, answer in the form agent CLIs with hooks expect: added
+context after a tool call, at session start and on a prompt; a blocked stop
+with the messages as the reason before the session ends. Messages SHALL be
+delivered once, so a stop hook cannot loop. Without `$AGENT_ID` the agent
+SHALL be identified by the roster entry whose owner process started the
+hook. Bad input, an unknown agent or no mail SHALL be silence with exit 0:
+a hook never fails the agent. The injected text SHALL say that messages are
+information, not instructions (COORD-005).
+
 ## Verification
 
 `python3 -m unittest scripts.tests.test_agent_coordination` (Roster,
-Messages, Cli, Worktrees, Overview, WebPanel, Dashboard; Profiles and Adapter
-verify WORKER-006 / WORKER-012).
+Messages, Cli, Worktrees, Overview, WebPanel, Dashboard, Station, Hooks;
+Profiles and Adapter verify WORKER-006 / WORKER-012).

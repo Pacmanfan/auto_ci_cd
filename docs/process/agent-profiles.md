@@ -136,3 +136,50 @@ writes the `result` event when the CLI exits:
 - To run two versions side by side, define two profiles whose commands name
   the two executables (for example `opencode` and a second installation's
   path) and assign them to different worker slots.
+
+## Messages into a running session: hooks (COORD-012)
+
+An agent CLI with hooks can have unread coordination messages injected into
+its running session by `scripts/msg.py hook`, which reads the hook event on
+stdin and prints the answer the CLI expects. The command needs to know whose
+session it is: start the CLI with `AGENT_ID` already in its environment, or
+let it find the roster entry whose owner process (`AGENT_OWNER_PID`) started
+the hook.
+
+### Claude Code
+
+In the project's `.claude/settings.json` (checked against the hooks
+reference; `PostToolUse` context must be the JSON form, which `msg.py hook`
+prints):
+
+```json
+{
+  "hooks": {
+    "SessionStart":     [{"hooks": [{"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/msg.py\" hook", "timeout": 10}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/msg.py\" hook", "timeout": 10}]}],
+    "PostToolUse":      [{"matcher": "*", "hooks": [{"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/msg.py\" hook", "timeout": 10}]}],
+    "Stop":             [{"hooks": [{"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/msg.py\" hook", "timeout": 10}]}]
+  }
+}
+```
+
+- After every tool call, at session start and on every prompt, unread
+  messages are added to the session's context. Before the session stops,
+  unread messages block the stop once and are handed over as the reason.
+  Messages are delivered once, so the stop hook cannot loop.
+- Hooks also run in headless (`-p`) sessions, so workers get them too. A
+  hook process inherits the CLI's environment: a worker's agent has
+  `AGENT_ID`; an interactive session that created its id in a shell command
+  is found through `AGENT_OWNER_PID` instead.
+- This file is not shipped with the system (a settings directory named
+  after a product would break the identity rule, WORKER-012): add it to the
+  project that uses the system. It has not been exercised end to end with a
+  live session here; the hook's output forms are unit-tested
+  (`test_agent_coordination.Hooks`).
+- On Windows write the command with `python` and `%CLAUDE_PROJECT_DIR%`.
+
+### opencode
+
+No hook configuration is documented here: its plugin interface was not
+verified. Its sessions receive messages when they wait (`msg.py wait`), at
+their next `claim.py` command, or when they read their inbox.

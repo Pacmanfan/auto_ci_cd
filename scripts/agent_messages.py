@@ -37,13 +37,18 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
+import socket
 import subprocess
+import sys
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import agent_process as proc
+import devsys_config as cfgmod
 import devsys_platform as plat
 
 OPERATOR = "operator"
@@ -53,11 +58,15 @@ EVERYONE = "all"
 KINDS = ("note", "question", "answer", "status", "handoff", "path-request", "alert")
 RESERVED_NAMES = {OPERATOR, EVERYONE}
 MAX_BODY = 8000
-# Friendly names handed out in order; a full pool continues with name-2, ...
-NAME_POOL = ("amber", "birch", "cedar", "delta", "ember", "flint", "grove", "heron", "indigo", "juniper",
-             "kestrel", "linden", "maple", "nova", "onyx", "pine", "quartz", "raven", "sage", "tern",
-             "umber", "vale", "willow", "yarrow", "zephyr")
+# The first agent on an empty roster is always FIRST_NAME; every later agent
+# gets a name drawn at random from the free ones of NAME_POOL (a used-up pool
+# continues with Name-2, ...). Names are unique whatever their case.
+FIRST_NAME = "Cody"
+NAME_POOL = ("Amber", "Birch", "Cedar", "Delta", "Ember", "Flint", "Grove", "Heron", "Indigo", "Juniper",
+             "Kestrel", "Linden", "Maple", "Nova", "Onyx", "Pine", "Quartz", "Raven", "Sage", "Tern",
+             "Umber", "Vale", "Willow", "Yarrow", "Zephyr")
 _NAME_RE = re.compile(r"[a-z][a-z0-9-]{1,31}")
+AUTOSTART_ENV = "DEVSYS_COORDINATION_AUTOSTART"     # "0" switches the automatic panels off (tests, CI)
 _LOCK = "coordination"
 
 
@@ -115,13 +124,17 @@ def liveness(entry: dict) -> tuple[str, str]:
     return plat.verify_session(entry["owner"])
 
 
-def _free_name(taken: set[str]) -> str:
+def _free_name(taken: set[str], first: bool) -> str:
+    """``taken``: lower-case names in use. The first agent is FIRST_NAME; the
+    others draw at random."""
+    if first and FIRST_NAME.lower() not in taken:
+        return FIRST_NAME
     n = 1
     while True:
-        for base in NAME_POOL:
-            name = base if n == 1 else f"{base}-{n}"
-            if name not in taken:
-                return name
+        free = [name for name in ((base if n == 1 else f"{base}-{n}") for base in NAME_POOL)
+                if name.lower() not in taken]
+        if free:
+            return random.choice(free)
         n += 1
 
 
@@ -149,20 +162,22 @@ def register(root: Path, agent_id: str, *, name: str | None = None, profile: str
     agent is refused. Only the given fields change on a refresh."""
     agent_id = proc.validate_agent_id(agent_id)
     if name is not None:
-        name = name.strip().lower()
-        if not _NAME_RE.fullmatch(name) or name in RESERVED_NAMES:
-            raise MessageError(proc.INVALID, f"agent name {name!r} is not usable (lower-case letters, digits, '-'; "
+        name = name.strip()
+        if not _NAME_RE.fullmatch(name.lower()) or name.lower() in RESERVED_NAMES:
+            raise MessageError(proc.INVALID, f"agent name {name!r} is not usable (letters, digits, '-'; "
                                              f"2-32 characters; not {', '.join(sorted(RESERVED_NAMES))})")
     with proc.exclusive(root, _LOCK):
         others = [e for e in roster(root) if e["agent_id"] != agent_id]
         entry = get(root, agent_id)
-        taken = {e["name"] for e in others}
-        if name and name in taken:
-            holder = next(e for e in others if e["name"] == name)
+        taken = {e["name"].lower() for e in others}
+        if name and name.lower() in taken:
+            holder = next(e for e in others if e["name"].lower() == name.lower())
             raise MessageError(proc.CONFLICT, f"agent name {name!r} is held by {holder['agent_id']}")
         now = proc.now_iso()
+        created = entry is None
         if entry is None:
-            entry = {"agent_id": agent_id, "name": name or _free_name(taken | RESERVED_NAMES), "profile": None,
+            entry = {"agent_id": agent_id, "name": name or _free_name(taken | RESERVED_NAMES, first=not others),
+                     "profile": None,
                      "roles": [], "worker": None, "owner": None, "cwd": None, "worktree": None, "branch": None,
                      "request": None, "read_seq": last_seq(root), "registered_at": now}
         elif name:
@@ -181,7 +196,13 @@ def register(root: Path, agent_id: str, *, name: str | None = None, profile: str
             entry["request"] = request or None
         entry["seen_at"] = now
         proc.atomic_write_text(_entry_path(root, agent_id), json.dumps(entry, indent=2) + "\n")
-        return entry
+    # An agent is here: the panels start with the first one (COORD-011), and
+    # whoever watches learns of the change at once (COORD-010).
+    station = ensure_station(root)
+    if created:
+        entry = {**entry, "_new": True, "_station": station}
+    publish(root, {"event": "roster", "agent": agent_id})
+    return entry
 
 
 def ensure(root: Path, agent_id: str, owner_pid: int | None = None) -> dict:
@@ -219,7 +240,7 @@ def resolve(root: Path, who: str) -> str:
         return w.lower()
     entries = roster(root)
     for e in entries:
-        if w == e["agent_id"] or w.lower() == e["name"]:
+        if w == e["agent_id"] or w.lower() == e["name"].lower():
             return e["agent_id"]
     if any(w.lower() in (e.get("roles") or []) for e in entries):
         return w.lower()
@@ -287,8 +308,8 @@ def read(root: Path, *, after: int = 0, limit: int | None = None, request: str |
 
 def _addressed(m: dict, agent_id: str, entry: dict | None) -> bool:
     to = m.get("to")
-    return to == EVERYONE or to == agent_id or bool(entry) and (to == entry.get("name")
-                                                                 or to in (entry.get("roles") or []))
+    return to == EVERYONE or to == agent_id or bool(entry) and (
+        str(to).lower() == str(entry.get("name")).lower() or to in (entry.get("roles") or []))
 
 
 def send(root: Path, sender: str, to: str, body: str, *, kind: str = "note", request: str | None = None,
@@ -325,6 +346,8 @@ def send(root: Path, sender: str, to: str, body: str, *, kind: str = "note", req
             f.write(json.dumps(msg, ensure_ascii=False) + "\n")
             f.flush()
             os.fsync(f.fileno())
+    # The log is the record; the hub only wakes whoever waits (COORD-010).
+    publish(root, {"event": "message", "seq": msg["seq"], "from": sender, "to": target, "kind": kind})
     return msg
 
 
@@ -364,12 +387,184 @@ def wait(root: Path, agent_id: str, *, timeout: float = 300.0, poll: float = 1.0
     an empty list): how an agent waits for the answer to a question."""
     ensure(root, agent_id)
     end = time.monotonic() + max(0.0, timeout)
-    while True:
-        if unread(root, agent_id):
-            return inbox(root, agent_id, mark_read=mark_read)
-        if time.monotonic() >= end:
-            return []
-        time.sleep(poll)
+    sub = subscribe(root)                      # push: the hub wakes us; without a hub, poll
+    try:
+        while True:
+            if unread(root, agent_id):
+                return inbox(root, agent_id, mark_read=mark_read)
+            left = end - time.monotonic()
+            if left <= 0:
+                return []
+            if sub is None:
+                time.sleep(min(poll, left))
+                sub = subscribe(root) if int(left) % 5 == 0 else None      # a hub may have started meanwhile
+            elif next_event(sub, min(left, 30.0)) is False:
+                sub = None                     # the hub went away: fall back to polling
+    finally:
+        if sub is not None:
+            sub.close()
+
+
+# ------------------------------------------------------- station and hub (push)
+#
+# The station (tools/panel/station.py) is one background process per clone:
+# it runs the hub (a loopback TCP socket, line-delimited JSON, a token) and
+# the panels. Senders tell the hub "something changed"; whoever waits on the
+# hub (msg.py wait / listen, the web panel's event stream, the dashboard) is
+# woken at once and reads the log. The log stays the only record, so a
+# missing hub costs promptness, never a message.
+
+def station_file(root: Path) -> Path:
+    return coordination_dir(root) / "station.json"
+
+
+def station_info(root: Path) -> dict | None:
+    """The running station's record (hub address and token, panel
+    addresses), or None when no station is verified running."""
+    try:
+        info = json.loads(station_file(root).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(info, dict) or plat.verify_session(info.get("process"))[0] == plat.DEAD:
+        return None
+    return info
+
+
+def autostart_enabled(root: Path) -> bool:
+    return os.environ.get(AUTOSTART_ENV, "1") != "0" and bool(cfgmod.get("coordination.autostart", root, True))
+
+
+def ensure_station(root: Path, wait_seconds: float = 6.0) -> dict | None:
+    """Start the station when none runs and autostart is on (the first agent
+    starts the panels). Returns its record, with ``started`` True when this
+    call started it. Never raises: coordination must not fail a lifecycle command."""
+    try:
+        info = station_info(root)
+        if info is not None or not autostart_enabled(root):
+            return info
+        script = Path(__file__).resolve().parent.parent / "tools" / "panel" / "station.py"
+        if not script.is_file():
+            return None
+        main = proc.main_root(root)
+        with open(coordination_dir(root) / "station.log", "ab") as log:
+            subprocess.Popen([sys.executable, str(script), "--root", str(main)], cwd=str(main),
+                             stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                             env={**os.environ, "AGENT_PROCESS_ROOT": str(main)}, **plat.group_popen_kwargs())
+        end = time.monotonic() + wait_seconds
+        while time.monotonic() < end:
+            info = station_info(root)
+            if info is not None and info.get("ready"):
+                return {**info, "started": True}
+            time.sleep(0.1)
+        return None
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def panel_lines(info: dict | None) -> list[str]:
+    """What to tell a person about where the panels are."""
+    if not info:
+        return ["PANELS not running (start them: python3 tools/panel/station.py, or python3 tools/panel/web_panel.py)"]
+    out = [f"PANEL web        {info.get('web') or 'not started: ' + str(info.get('web_error') or 'disabled')}"]
+    qt = info.get("qt") or {}
+    out.append("PANEL control    " + (f"window open (pid {qt['pid']})" if qt.get("pid") else
+                                     f"not started: {qt.get('reason') or 'disabled'}"))
+    out.append("PANEL dashboard  python3 tools/panel/dash.py   (run it in a terminal of your own)")
+    hub = info.get("hub") or {}
+    out.append(f"HUB              {hub.get('host')}:{hub.get('port')} (push delivery; pid {(info.get('process') or {}).get('pid')})")
+    return out
+
+
+def _connect(root: Path, mode: str, timeout: float = 0.5):
+    info = station_info(root)
+    hub = (info or {}).get("hub") or {}
+    if not hub.get("port"):
+        return None
+    try:
+        s = socket.create_connection((hub.get("host") or "127.0.0.1", int(hub["port"])), timeout=timeout)
+        s.sendall((json.dumps({"token": hub.get("token"), "mode": mode}) + "\n").encode("utf-8"))
+        return s
+    except OSError:
+        return None
+
+
+def publish(root: Path, event: dict) -> bool:
+    """Tell the hub that something changed. Best effort, never raises."""
+    try:
+        s = _connect(root, "pub")
+        if s is None:
+            return False
+        with s:
+            s.sendall((json.dumps(event) + "\n").encode("utf-8"))
+        return True
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def subscribe(root: Path):
+    """A socket on which the hub announces every change, or None without a hub."""
+    return _connect(root, "sub")
+
+
+def next_event(sub, timeout: float):
+    """Wait for the hub's next announcement: the event (a dict), None when
+    ``timeout`` passed quietly, False when the connection is gone."""
+    sub.settimeout(max(0.05, timeout))
+    buf = b""
+    try:
+        while not buf.endswith(b"\n"):
+            chunk = sub.recv(4096)
+            if not chunk:
+                return False
+            buf += chunk
+    except socket.timeout:
+        return None
+    except OSError:
+        return False
+    try:
+        return json.loads(buf.decode("utf-8", "replace").splitlines()[-1])
+    except ValueError:
+        return {}
+
+
+def follow(root: Path, on_event, stop) -> None:
+    """Call ``on_event(event)`` for every hub announcement until ``stop``
+    (a threading.Event) is set; reconnects when the hub restarts. For the
+    panels' background threads."""
+    while not stop.is_set():
+        sub = subscribe(root)
+        if sub is None:
+            stop.wait(3.0)
+            continue
+        with sub:
+            while not stop.is_set():
+                ev = next_event(sub, 5.0)
+                if ev is False:
+                    break
+                if ev is not None:
+                    on_event(ev)
+
+
+def present(root: Path, idle_minutes: float | None = None) -> list[dict]:
+    """The agents that are here now: owner process verified ALIVE, or, where
+    that cannot be verified, seen within ``coordination.idle_minutes``. The
+    station ends when this is empty (COORD-011)."""
+    if idle_minutes is None:
+        idle_minutes = float(cfgmod.get("coordination.idle_minutes", root, 30))
+    out = []
+    now = datetime.now(timezone.utc)
+    for e in roster(root):
+        verdict = liveness(e)[0]
+        if verdict == plat.ALIVE:
+            out.append(e)
+        elif verdict == plat.UNKNOWN:
+            try:
+                age = (now - datetime.fromisoformat(e.get("seen_at") or "")).total_seconds()
+            except ValueError:
+                continue
+            if age <= idle_minutes * 60:
+                out.append(e)
+    return out
 
 
 def notice(root: Path, agent_id: str | None) -> str | None:

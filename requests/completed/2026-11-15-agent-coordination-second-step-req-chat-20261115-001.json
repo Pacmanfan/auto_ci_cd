@@ -1,0 +1,113 @@
+{
+  "request_id": "REQ-CHAT-20261115-001",
+  "source": "chat",
+  "type": "FEATURE",
+  "priority": "HIGH",
+  "created": "2026-11-15T00:10:26-05:00",
+  "created_utc": "2026-11-15T05:10:26+00:00",
+  "id_date": "2026-11-15",
+  "timezone": "EST (UTC-05:00)",
+  "status": "completed",
+  "original_text": "Agent coordination, second step: (1) agent names are chosen at random, but the first agent opened is named 'Cody'; (2) messaging is push based: use a lightweight IPC mechanism so that a message reaches waiting agents and the panels at once instead of being polled; (3) the web dashboard and the control panels start automatically when the first agent starts and end when the last agent closes, and their addresses are printed at start; (4) fix all test failures, including tests that fail when a session's agent variables are inherited.",
+  "file": "requests/inbox/2026-11-15-agent-coordination-second-step-req-chat-20261115-001.md",
+  "attachments": [],
+  "context": "Operator chat message 2026-11-15: 'ensure name selection is random. - however the first agent opened should be named Cody. I want messageing to be push based. ensure that is true. maybe we can use a lightweight IPC mechanism. Ensure the web dashboard and control panels are both autostarted when the fist agent starts and ends when the last agent closes. print the addresses to start. Fix all test failures. Continue with all previous tasks'",
+  "text_sha256": "62be65c0e065c59712ba92e6b0a97f0d435999ea2dd00450ff5281ba5db1f850",
+  "classification": {
+    "proposed_type": "FEATURE",
+    "proposed_source": "override",
+    "normalized_type": "FEATURE",
+    "heuristic_type": "BUG",
+    "final_type": "FEATURE",
+    "confidence": "high",
+    "validation": "PASS",
+    "classifier_reason": "override FEATURE accepted (text alone suggests BUG: request statement is framed as bug: failures, fix)",
+    "correction_reason": null,
+    "normalization_note": null,
+    "evidence": [
+      {
+        "category": "BUG",
+        "where": "head",
+        "phrase": "fix",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(4) fix all test failures, including tests that fail when a session's agent variables are inherited."
+      },
+      {
+        "category": "BUG",
+        "where": "head",
+        "phrase": "failures",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(4) fix all test failures, including tests that fail when a session's agent variables are inherited."
+      }
+    ],
+    "scores": {
+      "FEATURE": {
+        "head": 0,
+        "body": 0
+      },
+      "BUG": {
+        "head": 2,
+        "body": 0
+      },
+      "CRASH": {
+        "head": 0,
+        "body": 0
+      },
+      "REGRESSION": {
+        "head": 0,
+        "body": 0
+      },
+      "PERFORMANCE": {
+        "head": 0,
+        "body": 0
+      },
+      "REFACTOR": {
+        "head": 0,
+        "body": 0
+      },
+      "BUILD": {
+        "head": 0,
+        "body": 0
+      },
+      "DOCUMENTATION": {
+        "head": 0,
+        "body": 0
+      },
+      "INVESTIGATION": {
+        "head": 0,
+        "body": 0
+      },
+      "PROCESS-CHANGE": {
+        "head": 0,
+        "body": 0
+      }
+    },
+    "evidence_total": 2,
+    "validator": "scripts/request_classification.py"
+  },
+  "links": {
+    "work": [
+      "WORK-000003"
+    ]
+  },
+  "commits": [],
+  "resolution": {
+    "from": "processing",
+    "to": "completed",
+    "at": "2026-11-15T05:20:42.593394+00:00",
+    "by": "agent-dev-20261114230032-8bee2e",
+    "gates": [
+      {
+        "work": "WORK-000003",
+        "at": "2026-11-15T05:20:42.431022+00:00",
+        "verdict": "PASS",
+        "request_fingerprint": "295809550ce38c185012ed3dabd631b375fec0b83be2efb9c11d4edaf6090d64",
+        "test_runs": [
+          "20261115T001651-3293952"
+        ]
+      }
+    ]
+  }
+}

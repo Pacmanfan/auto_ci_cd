@@ -17,6 +17,11 @@ import sys
 import tempfile
 import time
 import unittest
+
+# Not the calling session's agent identity, and no coordination station (see devsys_testlib).
+for _name in ("AGENT_ID", "AGENT_OWNER_PID"):
+    __import__("os").environ.pop(_name, None)
+__import__("os").environ["DEVSYS_COORDINATION_AUTOSTART"] = "0"
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

@@ -718,6 +718,12 @@ def isolated_env(job: Job, workdir: Path) -> dict:
     # root to a temp tree when it was unset).
     for name in SCRUBBED_ENV:
         env.pop(name, None)
+    # A test process is never the calling session's agent (its claims would be
+    # the session's, "owned" by the session's live process), and no test
+    # starts the coordination station.
+    for name in ("AGENT_ID", "AGENT_OWNER_PID"):
+        env.pop(name, None)
+    env["DEVSYS_COORDINATION_AUTOSTART"] = "0"
     env.pop("PROJECT_TEST_SHARD", None)
     env.pop("PROJECT_TEST_CASES", None)
     env.pop("PROJECT_TEST_LIST", None)
