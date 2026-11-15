@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Architecture / conformance audit: ./tools/audit [quick|standard|baseline] [--ai] ...
+
+See docs/verification/architecture-audit.md (ARCH-AUDIT-*, ADR-000195).
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "audit_system"))
+sys.dont_write_bytecode = True  # a read-only audit leaves no __pycache__ in the tree
+
+from audit import main  # noqa: E402
+
+raise SystemExit(main())

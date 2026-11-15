@@ -1,0 +1,4 @@
+# Verification Evidence Manifest
+
+Format: `VER-ID | classification | date | requirements/work | record`
+

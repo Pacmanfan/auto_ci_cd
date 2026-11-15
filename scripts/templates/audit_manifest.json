@@ -1,0 +1,503 @@
+{
+ "schema": 1,
+ "audit_version": "1.0.0",
+ "description": "Architecture / conformance audit manifest (ARCH-AUDIT-*, ADR-000195). Documentation: docs/verification/architecture-audit.md. A check is one entry in 'checks': an existing command with a result parser, a named builtin in tools/audit_system/checks.py, or a documented rule the audit cannot verify yet ('unverified'). Profiles select checks by cost class. Every check names the documented rule it evaluates and the document that states it; the audit adds no rule of its own. Status 'FAIL' is a gate-severity check that does not hold (\"severity\": \"gate\"); advisory checks DRIFT. A rule the project has not configured is SKIPPED, never PASS. Project architecture rules are declared in devsys.json \"invariants\" and evaluated by the builtin architecture_rules; 'project', 'modules' and 'requirements.test_sources' belong to the project; '_example_checks' shows further check kinds and is not loaded.",
+ "project": {
+  "name": "<PROJECT>",
+  "product": "<APP>",
+  "root_marker": "project.pro",
+  "sample_makefile": "Makefile"
+ },
+ "canonical_sources": {
+  "constitution": "AGENTS.md",
+  "documentation_index": "docs/README.md",
+  "requirements": "docs/requirements/",
+  "requirements_index": "docs/requirements/requirements.txt",
+  "architecture": "docs/architecture/",
+  "architecture_index": "docs/architecture/README.md",
+  "decisions_index": "docs/decisions/decisions.txt",
+  "invariants": "docs/audits/current-state.md",
+  "build_contract": "docs/process/build-contract.md",
+  "build_graph": "project.pro",
+  "warning_policy": "warnings.pri",
+  "test_registry": "scripts/test_manifest.json",
+  "test_commands": "docs/verification/tests.md",
+  "deployment": "<PROJECT_DEPLOYMENT_DOC>",
+  "wire_schema": "<PROJECT_WIRE_SCHEMA>",
+  "work_index": "work/work.txt",
+  "evidence_index": "evidence/evidence.txt"
+ },
+ "modules": [
+  {
+   "name": "Build and packaging",
+   "paths": [
+    "build/",
+    "project.pro",
+    "warnings.pri",
+    "version.pri",
+    "Makefile"
+   ]
+  },
+  {
+   "name": "Tools",
+   "paths": [
+    "tools/"
+   ]
+  },
+  {
+   "name": "Development system",
+   "paths": [
+    "scripts/",
+    "requests/",
+    "work/",
+    "evidence/",
+    ".agent/",
+    ".audit/",
+    "AGENTS.md"
+   ]
+  },
+  {
+   "name": "Documentation",
+   "paths": [
+    "docs/",
+    "README.md"
+   ]
+  },
+  {
+   "name": "Vendored",
+   "paths": [
+    "third_party/"
+   ]
+  }
+ ],
+ "requirements": {
+  "documents": "docs/requirements/*.md",
+  "exclude": [
+   "docs/requirements/README.md"
+  ],
+  "index": "docs/requirements/requirements.txt",
+  "test_sources": [
+   "scripts/tests/**",
+   "tools/*/tests/**"
+  ],
+  "test_suffixes": [
+   ".cpp",
+   ".h",
+   ".py",
+   ".ts",
+   ".sh",
+   ".json"
+  ],
+  "evidence": [
+   "evidence/**/*.md"
+  ]
+ },
+ "documentation_paths": {
+  "documents": [
+   "AGENTS.md",
+   "docs/README.md"
+  ],
+  "architecture_index": "docs/architecture/README.md",
+  "indexes": [
+   "docs/README.md"
+  ],
+  "indexed_prefixes": [
+   "docs/architecture/"
+  ],
+  "extensions": [
+   ".h",
+   ".hpp",
+   ".cpp",
+   ".c",
+   ".py",
+   ".sh",
+   ".pro",
+   ".pri",
+   ".proto",
+   ".md",
+   ".json",
+   ".ui",
+   ".ts",
+   ".yaml",
+   ".yml",
+   ".txt",
+   ".cmake",
+   ".qrc"
+  ],
+  "skip_prefixes": [
+   "build/",
+   "dist/",
+   "runtime/",
+   "log/"
+  ],
+  "context_words": [
+   "deleted",
+   "removed",
+   "former",
+   "formerly",
+   "no longer",
+   "legacy",
+   "historical",
+   "renamed",
+   "moved",
+   "replaced",
+   "obsolete",
+   "superseded",
+   "was ",
+   "old ",
+   "xdg_",
+   "~/",
+   "%appdata%",
+   "$home"
+  ]
+ },
+ "profiles": {
+  "quick": {
+   "description": "Fast deterministic checks for frequent use: static boundary checks, existing audit scripts, requirement and documentation consistency, recorded test results. No build tree probing beyond reading files, no test execution.",
+   "costs": [
+    "fast"
+   ],
+   "budget_seconds": 60
+  },
+  "standard": {
+   "description": "Normal development audit: quick plus the build-tree probes (binary boundary, test-binary freshness through run_tests.py --plan, toolchain) and the development-system structure check. No test execution unless --run-tests is given.",
+   "costs": [
+    "fast",
+    "moderate"
+   ],
+   "budget_seconds": 180
+  },
+  "baseline": {
+   "description": "Comprehensive snapshot to establish the known state: standard plus the unit tier of every registered suite through scripts/run_tests.py (cached groups are not re-run; stale binaries are reported, never built). Baseline runs are never removed by retention.",
+   "costs": [
+    "fast",
+    "moderate",
+    "tests"
+   ],
+   "budget_seconds": 1200,
+   "run_tests_tier": "t1"
+  }
+ },
+ "cost_classes": {
+  "fast": "deterministic, seconds, reads the repository only",
+  "moderate": "deterministic, reads the build tree or runs several tools, under a minute",
+  "tests": "executes existing tests through scripts/run_tests.py",
+  "expensive": "builds, perf / stress / soak / live / package lanes, containers, hardware: never run by a Phase 1 profile",
+  "ai": "optional interpretation of the audit packet (--ai); never evidence"
+ },
+ "retention": {
+  "max_runs": 30,
+  "keep_profiles": [
+   "baseline"
+  ]
+ },
+ "checks": [
+  {
+   "id": "arch.rules",
+   "domain": "architecture",
+   "severity": "gate",
+   "title": "The project's architecture rules hold (devsys.json invariants, scripts/invariant_check.py)",
+   "rule": "REQ-DEVOPS-022; AGENTS.md Repository Constraints",
+   "source": "devsys.json",
+   "kind": "builtin",
+   "function": "architecture_rules",
+   "cost": "fast"
+  },
+  {
+   "id": "req.index-coverage",
+   "domain": "requirements",
+   "title": "Every requirement document has an owner row in requirements.txt and every owner row names an existing document",
+   "rule": "AGENTS.md Authority (use requirements.txt to find the owner); REQ-DEVOPS-004",
+   "source": "docs/requirements/requirements.txt",
+   "kind": "builtin",
+   "function": "requirement_index",
+   "cost": "fast"
+  },
+  {
+   "id": "req.undefined-references",
+   "domain": "requirements",
+   "title": "Tests and evidence cite only requirement IDs that a requirement document defines",
+   "rule": "REQ-DEVOPS-008 (work traceability), REQ-DEVOPS-009",
+   "source": "docs/requirements/development_operations.md",
+   "kind": "builtin",
+   "function": "requirement_references",
+   "cost": "fast"
+  },
+  {
+   "id": "req.verification-coverage",
+   "domain": "requirements",
+   "title": "Every requirement has an identifiable verification mechanism",
+   "rule": "REQ-DEVOPS-008, REQ-DEVOPS-009",
+   "source": "docs/requirements/development_operations.md",
+   "kind": "builtin",
+   "function": "requirement_coverage",
+   "reason": "a requirement no test or evidence record cites may still be verified by a test that does not name it; Phase 1 can only count citations",
+   "future_evidence": "requirement IDs in test case names or a maintained requirements-trace index",
+   "cost": "fast"
+  },
+  {
+   "id": "doc.referenced-paths",
+   "domain": "documentation",
+   "title": "Files that the constitution, the documentation index and the current architecture documents name exist",
+   "rule": "AGENTS.md Documentation; docs/architecture/README.md (current references)",
+   "source": "docs/architecture/README.md",
+   "kind": "builtin",
+   "function": "documented_paths",
+   "cost": "fast"
+  },
+  {
+   "id": "doc.integrity",
+   "domain": "documentation",
+   "title": "Documentation integrity (links, stale paths, obsolete terms) by scripts/doc_integrity.py",
+   "rule": "REQ-DEVOPS-026",
+   "source": "docs/requirements/development_operations.md",
+   "kind": "command",
+   "command": [
+    "python3",
+    "scripts/doc_integrity.py",
+    "--json"
+   ],
+   "cost": "fast",
+   "timeout_seconds": 120,
+   "parse": "findings-json",
+   "severity": "gate"
+  },
+  {
+   "id": "proc.drift",
+   "domain": "process",
+   "title": "Development-system drift by scripts/drift_detect.py",
+   "rule": "REQ-DEVOPS-020, REQ-DEVOPS-044",
+   "source": "docs/requirements/development_operations.md",
+   "kind": "command",
+   "command": [
+    "python3",
+    "scripts/drift_detect.py",
+    "--json"
+   ],
+   "cost": "fast",
+   "timeout_seconds": 120,
+   "parse": "findings-json",
+   "severity": "gate"
+  },
+  {
+   "id": "proc.structure",
+   "domain": "process",
+   "title": "Development-system structure by scripts/verify_development_system.sh (unit tests excluded: the scripts suite runs them)",
+   "rule": "REQ-DEVOPS-001..014 structure",
+   "source": "docs/requirements/development_operations.md",
+   "kind": "command",
+   "command": [
+    "bash",
+    "scripts/verify_development_system.sh"
+   ],
+   "env": {
+    "DEVSYS_SKIP_UNITTESTS": "1"
+   },
+   "cost": "moderate",
+   "timeout_seconds": 120,
+   "parse": "exit",
+   "severity": "gate"
+  },
+  {
+   "id": "static.warning-policy",
+   "domain": "static",
+   "title": "Every first-party project uses the central warnings-as-errors policy and states no warning flags of its own",
+   "rule": "REQ-DEVOPS-040",
+   "source": "docs/requirements/development_operations.md",
+   "kind": "unverified",
+   "reason": "PROJECT-SPECIFIC: the source project ran its static warning-policy test here (python3 -m unittest scripts.tests.test_warning_policy); no such test is part of the extraction",
+   "future_evidence": "a static test that every first-party build file uses the central policy",
+   "cost": "fast"
+  },
+  {
+   "id": "build.health",
+   "domain": "build",
+   "title": "The configured build adapter's tools and tree (scripts/build_health.py)",
+   "rule": "REQ-DEVOPS-038, docs/process/build-contract.md",
+   "source": "docs/process/build-contract.md",
+   "kind": "command",
+   "command": [
+    "python3",
+    "scripts/build_health.py"
+   ],
+   "cost": "moderate",
+   "timeout_seconds": 60,
+   "parse": "exit"
+  },
+  {
+   "id": "build.freshness",
+   "domain": "build",
+   "title": "The audited build tree's test binaries are built from the current sources (scripts/run_tests.py --plan)",
+   "rule": "REQ-DEVOPS-035, REQ-DEVOPS-046 (STALE detection)",
+   "source": "docs/process/build-contract.md",
+   "kind": "command",
+   "command": [
+    "python3",
+    "scripts/run_tests.py",
+    "--plan",
+    "--tier",
+    "t3",
+    "--all",
+    "--build-dir",
+    "{build_dir}"
+   ],
+   "cost": "moderate",
+   "timeout_seconds": 120,
+   "parse": "test-plan",
+   "reason": "a stale or missing binary means the current sources have not been built in this tree, so whether they build (with zero warnings under -Werror) is not known",
+   "future_evidence": "a build of the current sources in a private tree (scripts/run_tests.py --build) recorded by the audit"
+  },
+  {
+   "id": "build.release-package",
+   "domain": "build",
+   "title": "Release package validation and smoke test (the project's package validation + smoke scripts)",
+   "rule": "REQ-DEVOPS-046 (package lane)",
+   "source": "docs/process/build-contract.md",
+   "kind": "command",
+   "command": [],
+   "cost": "expensive",
+   "reason": "package lane (the project's deployment script); not run by any Phase 1 profile"
+  },
+  {
+   "id": "test.unit-tier",
+   "domain": "tests",
+   "title": "Unit tier (t0 + t1) of every registered suite, executed through scripts/run_tests.py",
+   "rule": "REQ-DEVOPS-046",
+   "source": "scripts/test_manifest.json",
+   "kind": "command",
+   "command": [
+    "python3",
+    "scripts/run_tests.py",
+    "--tier",
+    "{run_tests_tier}",
+    "--all",
+    "--build-dir",
+    "{build_dir}"
+   ],
+   "cost": "tests",
+   "timeout_seconds": 1200,
+   "parse": "test-run",
+   "severity": "gate"
+  },
+  {
+   "id": "test.recorded-results",
+   "domain": "tests",
+   "title": "The latest recorded result of every registered test group in the audited build tree",
+   "rule": "REQ-DEVOPS-046 (run records), REQ-DEVOPS-009",
+   "source": "scripts/test_manifest.json",
+   "kind": "builtin",
+   "function": "recorded_test_results",
+   "cost": "fast",
+   "severity": "gate"
+  },
+  {
+   "id": "test.runtime-lanes",
+   "domain": "tests",
+   "title": "Integration / GUI (t2, t3) and the perf, stress, soak, live (hardware) and package lanes",
+   "rule": "REQ-DEVOPS-046",
+   "source": "scripts/test_manifest.json",
+   "kind": "command",
+   "command": [],
+   "cost": "expensive",
+   "reason": "long-running, display, hardware or packaging lanes; a Phase 1 audit reports their recorded results only"
+  }
+ ],
+ "_example_checks": [
+  {
+   "id": "arch.<library>-framework-free",
+   "domain": "architecture",
+   "title": "<library> stays free of <framework> includes",
+   "rule": "AGENTS.md Repository Constraints",
+   "source": "AGENTS.md",
+   "kind": "invariant",
+   "match": [
+    "INVARIANT <name>"
+   ],
+   "strength": "enforced",
+   "cost": "fast"
+  },
+  {
+   "id": "arch.declared-dependencies",
+   "domain": "architecture",
+   "title": "The root project declares the product dependencies the architecture prescribes",
+   "rule": "<REQ-ID>",
+   "source": "docs/requirements/<domain>.md",
+   "kind": "builtin",
+   "function": "declared_dependencies",
+   "params": {
+    "project_file": "project.pro",
+    "expect": {
+     "<app>": {
+      "includes": [
+       "<core>"
+      ]
+     },
+     "<core>": {
+      "only": [
+       "<lib>"
+      ]
+     }
+    }
+   },
+   "cost": "fast"
+  },
+  {
+   "id": "arch.dependency-direction",
+   "domain": "architecture",
+   "title": "No declared build dependency points against the documented direction (app -> core -> lib)",
+   "rule": "<REQ-ID>",
+   "source": "docs/architecture/<doc>.md",
+   "kind": "builtin",
+   "function": "dependency_direction",
+   "params": {
+    "forbidden": {
+     "<lib>/<lib>.pro": [
+      "<core>/<core>.pro",
+      "<app>/<app>.pro"
+     ],
+     "<core>/<core>.pro": [
+      "<app>/<app>.pro"
+     ]
+    }
+   },
+   "cost": "fast"
+  },
+  {
+   "id": "arch.<boundary>",
+   "domain": "architecture",
+   "title": "<module boundary> holds (project script)",
+   "rule": "<REQ-ID>",
+   "source": "docs/requirements/<domain>.md",
+   "kind": "command",
+   "command": [
+    "bash",
+    "scripts/<project_boundary_check>.sh",
+    "--skip-binaries"
+   ],
+   "cost": "fast",
+   "timeout_seconds": 120,
+   "parse": "exit"
+  },
+  {
+   "id": "build.qt6-only",
+   "domain": "build",
+   "title": "Every Makefile of the audited build tree was generated by Qt 6 qmake",
+   "rule": "<toolchain ADR>",
+   "source": "docs/process/build-contract.md",
+   "kind": "builtin",
+   "function": "build_tree_qt",
+   "cost": "moderate"
+  },
+  {
+   "id": "arch.<rule-without-check>",
+   "domain": "architecture",
+   "title": "<rule no tool can verify yet>",
+   "rule": "AGENTS.md Repository Constraints",
+   "source": "AGENTS.md",
+   "kind": "unverified",
+   "reason": "no static or runtime check exists",
+   "future_evidence": "<what would verify it>",
+   "cost": "fast"
+  }
+ ]
+}

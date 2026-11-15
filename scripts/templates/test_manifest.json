@@ -1,0 +1,306 @@
+{
+ "schema": 1,
+ "description": "Test suite registry for scripts/run_tests.py (REQ-DEVOPS-046, ADR-000186). A suite is one runner; a group is one invocation of it. Tiers are cumulative: t1 runs t0 plus the affected unit groups, t2 adds the affected integration / GUI groups, t3 runs every suite and group whatever changed. perf, stress, soak, live and package are explicit lanes, never implied by a tier. 'project' is the qmake project that builds the binary, 'uses' the projects whose binaries the suite executes, 'inputs' the non-code files it reads (globs, repository-relative). expected_seconds are measured single-process wall times; shards split a group across processes (balanced by recorded per-case duration through PROJECT_TEST_CASES, else PROJECT_TEST_SHARD). 'load_sensitive' lists timing-sensitive functional cases: they still run and must pass, in an exclusive job after the parallel phase. 'wrapper' runs a group under another program (e.g. xvfb-run for a GUI group that needs a display; '{display}' is replaced per shard). 'cases' / 'exclude_cases' (globs) give a group part of its runner's cases, e.g. hardware cases to the live lane with requirement 'hardware'. 'requires' entries: 'file:<path>', 'exe:<name>', 'python:<module>', 'testdata' ($PROJECT_TEST_DATA), 'hardware' ($PROJECT_LIVE_HW_ARGS). PROJECT-SPECIFIC: register the project's own suites here; '_example_binary_suite' shows the shape of a binary suite and is not loaded.",
+ "tiers": {
+  "t0": {
+   "includes": [],
+   "budget_seconds": 60,
+   "summary": "static and process checks, always"
+  },
+  "t1": {
+   "includes": [
+    "t0"
+   ],
+   "budget_seconds": 240,
+   "summary": "t0 + unit groups of the affected suites"
+  },
+  "t2": {
+   "includes": [
+    "t0",
+    "t1"
+   ],
+   "budget_seconds": 900,
+   "summary": "t1 + integration and GUI groups of the affected suites (the work-item gate)"
+  },
+  "t3": {
+   "includes": [
+    "t0",
+    "t1",
+    "t2"
+   ],
+   "budget_seconds": 3600,
+   "summary": "every suite and group, affected or not (system / expensive tests; nightly / pre-release; run it on the Debug and the Release tree)"
+  },
+  "perf": {
+   "includes": [],
+   "budget_seconds": 1800,
+   "summary": "benchmarks and throughput assertions, one at a time"
+  },
+  "stress": {
+   "includes": [],
+   "budget_seconds": 1800,
+   "summary": "stress groups, one at a time"
+  },
+  "soak": {
+   "includes": [],
+   "budget_seconds": 7200,
+   "summary": "long-running real-data soak"
+  },
+  "live": {
+   "includes": [],
+   "budget_seconds": 7200,
+   "summary": "live application verification scripts on real data / hardware"
+  },
+  "package": {
+   "includes": [],
+   "budget_seconds": 600,
+   "summary": "staged distribution: the project's package validation + asserting smoke test"
+  },
+  "release": {
+   "includes": [],
+   "budget_seconds": 1800,
+   "summary": "release validation of a built package (the project's release checks); never implied by a tier"
+  }
+ },
+ "suites": [
+  {
+   "id": "devsys",
+   "kind": "command",
+   "results": "exit",
+   "command": [
+    "bash",
+    "scripts/verify_development_system.sh"
+   ],
+   "env": {
+    "DEVSYS_SKIP_UNITTESTS": "1"
+   },
+   "groups": {
+    "structure": {
+     "tiers": [
+      "t0"
+     ],
+     "expected_seconds": 3
+    }
+   }
+  },
+  {
+   "id": "audits",
+   "kind": "command",
+   "results": "exit",
+   "groups": {
+    "drift": {
+     "tiers": [
+      "t0"
+     ],
+     "command": [
+      "python3",
+      "scripts/drift_detect.py"
+     ],
+     "expected_seconds": 2
+    },
+    "doc_integrity": {
+     "tiers": [
+      "t0"
+     ],
+     "command": [
+      "python3",
+      "scripts/doc_integrity.py"
+     ],
+     "expected_seconds": 1
+    },
+    "invariants": {
+     "tiers": [
+      "t0"
+     ],
+     "command": [
+      "python3",
+      "scripts/invariant_check.py"
+     ],
+     "expected_seconds": 3
+    }
+   }
+  },
+  {
+   "id": "scripts",
+   "kind": "command",
+   "results": "exit",
+   "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "scripts/tests"
+   ],
+   "inputs": [
+    "scripts/**",
+    "devsys.json",
+    "docs/process/historical-id-collisions.md",
+    "tools/panel/**"
+   ],
+   "groups": {
+    "unit": {
+     "tiers": [
+      "t1"
+     ],
+     "expected_seconds": 240
+    }
+   }
+  },
+  {
+   "id": "audit_py",
+   "kind": "command",
+   "results": "exit",
+   "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tools/audit_system/tests"
+   ],
+   "inputs": [
+    "tools/audit",
+    "tools/audit_system/**",
+    ".audit/manifest.json"
+   ],
+   "groups": {
+    "unit": {
+     "tiers": [
+      "t1"
+     ],
+     "expected_seconds": 3
+    }
+   }
+  },
+  {
+   "id": "package",
+   "kind": "command",
+   "results": "exit",
+   "requires": [
+    "file:<PACKAGE_STAGING_DIR>/<APP_BINARY>"
+   ],
+   "groups": {
+    "validate": {
+     "tiers": [
+      "package"
+     ],
+     "exclusive": true,
+     "command": [
+      "bash",
+      "<PROJECT_PACKAGE_VALIDATE_SCRIPT>",
+      "--staging",
+      "<PACKAGE_STAGING_DIR>"
+     ],
+     "expected_seconds": 60
+    },
+    "smoke": {
+     "tiers": [
+      "package"
+     ],
+     "exclusive": true,
+     "command": [
+      "bash",
+      "<PROJECT_PACKAGE_SMOKE_SCRIPT>",
+      "--staging",
+      "<PACKAGE_STAGING_DIR>"
+     ],
+     "expected_seconds": 60
+    }
+   }
+  }
+ ],
+ "live_scripts": {
+  "glob": "<LIVE_SCRIPTS_DIR>/verify_*.py",
+  "tiers": [
+   "live"
+  ],
+  "uses": [
+   "<APP_PROJECT>.pro"
+  ],
+  "requires_detect": {
+   "testdata": "PROJECT_TEST_DATA",
+   "hardware": "PROJECT_LIVE_HW_ARGS"
+  },
+  "expected_seconds": 120
+ },
+ "_example_binary_suite": {
+  "id": "<unit_tests>",
+  "kind": "binary",
+  "results": "json",
+  "binary": "<TestProject>/<TestBinary>",
+  "project": "<TestProject>/<TestProject>.pro",
+  "uses": [
+   "<AppProject>/<AppProject>.pro"
+  ],
+  "inputs": [
+   "<TestProject>/fixtures/**"
+  ],
+  "load_sensitive": [
+   "integration/<timing_sensitive_case>"
+  ],
+  "groups": {
+   "unit": {
+    "tiers": [
+     "t1"
+    ],
+    "args": [
+     "--unit"
+    ],
+    "shards": 3,
+    "expected_seconds": 90
+   },
+   "integration": {
+    "tiers": [
+     "t2"
+    ],
+    "args": [
+     "--integration"
+    ],
+    "shards": 2,
+    "expected_seconds": 30
+   },
+   "stress": {
+    "tiers": [
+     "stress"
+    ],
+    "args": [
+     "--stress"
+    ],
+    "exclusive": true,
+    "expected_seconds": 5
+   },
+   "gui": {
+    "tiers": [
+     "t2"
+    ],
+    "wrapper": [
+     "xvfb-run",
+     "-a",
+     "-n",
+     "{display}"
+    ],
+    "args": [
+     "--gui"
+    ],
+    "requires": [
+     "exe:xvfb-run"
+    ],
+    "expected_seconds": 60
+   },
+   "live_hw": {
+    "tiers": [
+     "live"
+    ],
+    "cases": [
+     "live_hw_*"
+    ],
+    "requires": [
+     "hardware"
+    ],
+    "exclusive": true,
+    "expected_seconds": 60
+   }
+  }
+ }
+}

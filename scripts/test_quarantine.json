@@ -1,0 +1,4 @@
+{
+  "description": "Known failing test cases (REQ-DEVOPS-046, ADR-000186). scripts/run_tests.py reports a failure that matches an entry (suite id + case glob, 'group/name' as the run record names it) as EXPECTED / PRE-EXISTING instead of a regression \u2014 never hides it. Every entry names the request or work item that owns the fix, the reason and an expiry date; after the expiry the failure counts again. Prefer fixing the test; quarantine only what cannot be fixed in the change that found it.",
+  "entries": []
+}

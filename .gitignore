@@ -1,0 +1,21 @@
+# Extracted from the source project's .gitignore: the rules that belong to the
+# development-control system. Add the project's own rules below.
+
+# Process-tooling runtime state (ADR-000090): claim ownership records, id
+# allocator counters, inter-process locks and private commit indexes.
+.agent/state/claims/
+.agent/state/runtime/
+
+# Architecture audit runs (tools/audit, ADR-000195): generated, bounded by retention; the
+# manifest and README in .audit/ are tracked, baselines are preserved as evidence/VER-*.
+/.audit/runs/
+
+# Project scratch area (AGENTS.md "Temporary Work and Staging"; the test
+# orchestrator's per-run scratch is tmp/tr/).
+/tmp/
+
+# Shadow build trees (test run records live in build/<tree>/test-results/).
+/build/
+
+__pycache__/
+*.pyc

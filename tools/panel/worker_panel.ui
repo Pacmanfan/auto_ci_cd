@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>WorkerPanel</class>
+ <widget class="QMainWindow" name="WorkerPanel">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>1180</width><height>780</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Worker Control Panel</string>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <item>
+     <widget class="QGroupBox" name="summaryBox">
+      <property name="title"><string>Development system</string></property>
+      <layout class="QHBoxLayout" name="summaryLayout">
+       <item><widget class="QLabel" name="maxWorkersLabel"><property name="text"><string>Max workers: -</string></property></widget></item>
+       <item><widget class="QLabel" name="runningLabel"><property name="text"><string>Running: -</string></property></widget></item>
+       <item><widget class="QLabel" name="queuedLabel"><property name="text"><string>Queued: -</string></property></widget></item>
+       <item><widget class="QLabel" name="workingLabel"><property name="text"><string>Working: -</string></property></widget></item>
+       <item><widget class="QLabel" name="finishedLabel"><property name="text"><string>Finished: -</string></property></widget></item>
+       <item><widget class="QLabel" name="agentLabel"><property name="text"><string>Agent: -</string></property></widget></item>
+       <item><widget class="QLabel" name="isolationLabel"><property name="text"><string>Isolation: -</string></property></widget></item>
+       <item>
+        <spacer name="summarySpacer">
+         <property name="orientation"><enum>Qt::Horizontal</enum></property>
+         <property name="sizeHint" stdset="0"><size><width>20</width><height>10</height></size></property>
+        </spacer>
+       </item>
+       <item><widget class="QCheckBox" name="autoRefreshCheck"><property name="text"><string>Auto refresh</string></property><property name="checked"><bool>true</bool></property></widget></item>
+       <item><widget class="QPushButton" name="refreshButton"><property name="text"><string>Refresh</string></property></widget></item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSplitter" name="workerSplitter">
+      <property name="orientation"><enum>Qt::Horizontal</enum></property>
+      <widget class="QGroupBox" name="workersBox">
+       <property name="title"><string>Workers</string></property>
+       <layout class="QVBoxLayout" name="workersLayout">
+        <item>
+         <widget class="QListWidget" name="workerList">
+          <property name="minimumSize"><size><width>380</width><height>200</height></size></property>
+          <property name="alternatingRowColors"><bool>true</bool></property>
+          <property name="spacing"><number>2</number></property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QGridLayout" name="workerButtons">
+          <item row="0" column="0"><widget class="QPushButton" name="startButton"><property name="text"><string>Start</string></property></widget></item>
+          <item row="0" column="1"><widget class="QPushButton" name="stopButton"><property name="toolTip"><string>Finish the current attempt, then stop</string></property><property name="text"><string>Stop</string></property></widget></item>
+          <item row="0" column="2"><widget class="QPushButton" name="stopNowButton"><property name="toolTip"><string>End the running session now (the attempt is INTERRUPTED; the claim is kept)</string></property><property name="text"><string>Stop now</string></property></widget></item>
+          <item row="1" column="0"><widget class="QPushButton" name="recoverButton"><property name="toolTip"><string>Settle a stopped worker's recorded attempt (never touches a running worker)</string></property><property name="text"><string>Recover</string></property></widget></item>
+          <item row="1" column="1"><widget class="QPushButton" name="enableButton"><property name="text"><string>Enable</string></property></widget></item>
+          <item row="1" column="2"><widget class="QPushButton" name="disableButton"><property name="text"><string>Disable</string></property></widget></item>
+          <item row="2" column="0"><widget class="QPushButton" name="startAllButton"><property name="text"><string>Start all</string></property></widget></item>
+          <item row="2" column="1"><widget class="QPushButton" name="stopAllButton"><property name="text"><string>Stop all</string></property></widget></item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QGroupBox" name="detailsBox">
+       <property name="title"><string>Worker details</string></property>
+       <layout class="QVBoxLayout" name="detailsLayout">
+        <item>
+         <widget class="QPlainTextEdit" name="detailsText">
+          <property name="readOnly"><bool>true</bool></property>
+          <property name="lineWrapMode"><enum>QPlainTextEdit::NoWrap</enum></property>
+          <property name="placeholderText"><string>Select a worker to inspect it.</string></property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QTabWidget" name="requestTabs">
+      <property name="currentIndex"><number>0</number></property>
+      <widget class="QWidget" name="queueTab">
+       <attribute name="title"><string>Queued</string></attribute>
+       <layout class="QVBoxLayout" name="queueLayout">
+        <item>
+         <widget class="QTableWidget" name="queueTable">
+          <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+          <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+          <property name="selectionMode"><enum>QAbstractItemView::SingleSelection</enum></property>
+          <column><property name="text"><string>Priority</string></property></column>
+          <column><property name="text"><string>Request</string></property></column>
+          <column><property name="text"><string>Type</string></property></column>
+          <column><property name="text"><string>Title</string></property></column>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="priorityLayout">
+          <item><widget class="QLabel" name="priorityLabel"><property name="text"><string>Priority of the selected request:</string></property></widget></item>
+          <item>
+           <widget class="QComboBox" name="priorityCombo">
+            <item><property name="text"><string>CRITICAL</string></property></item>
+            <item><property name="text"><string>HIGH</string></property></item>
+            <item><property name="text"><string>NORMAL</string></property></item>
+            <item><property name="text"><string>LOW</string></property></item>
+           </widget>
+          </item>
+          <item><widget class="QPushButton" name="setPriorityButton"><property name="text"><string>Set priority</string></property></widget></item>
+          <item>
+           <spacer name="prioritySpacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            <property name="sizeHint" stdset="0"><size><width>20</width><height>10</height></size></property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="workingTab">
+       <attribute name="title"><string>Working</string></attribute>
+       <layout class="QVBoxLayout" name="workingLayout">
+        <item>
+         <widget class="QTableWidget" name="workingTable">
+          <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+          <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+          <column><property name="text"><string>Request</string></property></column>
+          <column><property name="text"><string>Priority</string></property></column>
+          <column><property name="text"><string>Worker</string></property></column>
+          <column><property name="text"><string>Claim</string></property></column>
+          <column><property name="text"><string>Title</string></property></column>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="finishedTab">
+       <attribute name="title"><string>Finished</string></attribute>
+       <layout class="QVBoxLayout" name="finishedLayout">
+        <item>
+         <widget class="QTableWidget" name="finishedTable">
+          <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property>
+          <property name="selectionBehavior"><enum>QAbstractItemView::SelectRows</enum></property>
+          <column><property name="text"><string>State</string></property></column>
+          <column><property name="text"><string>Request</string></property></column>
+          <column><property name="text"><string>Priority</string></property></column>
+          <column><property name="text"><string>When</string></property></column>
+          <column><property name="text"><string>Title</string></property></column>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

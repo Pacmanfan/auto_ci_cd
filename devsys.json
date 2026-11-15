@@ -1,0 +1,104 @@
+{
+  "_comment": [
+    "Project configuration of the development-control system (ADR-000199).",
+    "Every key not set here takes its default: python3 scripts/devsys_config.py prints the effective values,",
+    "docs/process/configuration.md documents each setting. Keys starting with '_' are ignored.",
+    "This file is a protected artifact: change it through a PROCESS-CHANGE request."
+  ],
+  "schema": 1,
+  "project": {
+    "name": "<PROJECT>",
+    "source_roots": []
+  },
+  "paths": {
+    "scratch": "tmp",
+    "build_dir": "build/debug",
+    "crash_dumps": "log/dump"
+  },
+  "build": {
+    "system": "none"
+  },
+  "tests": {
+    "selection": "auto"
+  },
+  "completion": {
+    "min_tier": "t2"
+  },
+  "invariants": [],
+  "_examples": {
+    "build_cmake": {
+      "system": "cmake",
+      "source_dir": ".",
+      "build_dir": "build/debug"
+    },
+    "build_make": {
+      "system": "make"
+    },
+    "build_custom": {
+      "system": "custom",
+      "build": [
+        "./build.sh",
+        "--out",
+        "{build_dir}"
+      ],
+      "clean": [
+        "./build.sh",
+        "--clean",
+        "{build_dir}"
+      ]
+    },
+    "invariants": [
+      {
+        "id": "core-ui-free",
+        "kind": "forbid_pattern",
+        "files": [
+          "src/core/**"
+        ],
+        "pattern": "#include\\s*<Q",
+        "message": "the core library stays UI-framework-free"
+      },
+      {
+        "id": "layering",
+        "kind": "layers",
+        "layers": [
+          {
+            "name": "app",
+            "files": [
+              "src/app/**"
+            ],
+            "names": [
+              "app/"
+            ]
+          },
+          {
+            "name": "core",
+            "files": [
+              "src/core/**"
+            ],
+            "names": [
+              "core/"
+            ]
+          }
+        ]
+      }
+    ],
+    "binary_suite_globs_mode": {
+      "id": "unit",
+      "kind": "binary",
+      "results": "junit",
+      "binary": "tests/unit_tests",
+      "sources": [
+        "src/**",
+        "tests/**"
+      ],
+      "groups": {
+        "unit": {
+          "tiers": [
+            "t1"
+          ],
+          "expected_seconds": 30
+        }
+      }
+    }
+  }
+}

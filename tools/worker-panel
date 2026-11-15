@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Worker Control Panel (Qt): tools/panel/worker_panel.py over the Worker
+# Orchestrator's API.  Usage: tools/worker-panel [--root DIR]
+#
+# Also the target of the desktop / application-menu launcher
+# (tools/panel/desktop_launcher.py), so it must work without a terminal and
+# without an activated virtual environment:
+#
+#   * paths are resolved from this file's own location (symlinks followed),
+#     so the development-system directory may live anywhere, including as a
+#     subdirectory of the project it serves;
+#   * the Python that runs the panel is the first of $DEVSYS_PYTHON, the
+#     system directory's .venv, the project checkout's .venv, python3 on PATH
+#     that can import PySide6 (QtUiTools);
+#   * the per-user executable directory ($HOME/.local/bin, where agent CLIs are
+#     usually installed) is added to PATH when it exists: a desktop session's
+#     launcher environment often lacks it, and workers started from the panel
+#     inherit this PATH;
+#   * without a terminal, output goes to .agent/state/runtime/worker-panel.log
+#     and a failure to start is shown in a dialog (zenity, kdialog,
+#     notify-send or xmessage, whichever exists) as well as logged.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SYSTEM="$(dirname "$HERE")"
+TITLE="Worker Control Panel"
+
+LOG_DIR="$SYSTEM/.agent/state/runtime"
+mkdir -p "$LOG_DIR" 2>/dev/null || LOG_DIR="${TMPDIR:-/tmp}"
+LOG="$LOG_DIR/worker-panel.log"
+
+case ":${PATH:-}:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) [ -d "$HOME/.local/bin" ] && PATH="$HOME/.local/bin:${PATH:-/usr/bin:/bin}" ;;
+esac
+export PATH
+
+interactive() { [ -t 2 ]; }
+
+log() { printf '%s worker-panel: %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" >> "$LOG" 2>/dev/null || true; }
+
+# Report a failure: always on stderr and in the log; in a dialog when there is
+# no terminal to read it in.
+fail() {
+    local msg="$1"
+    log "$msg"
+    echo "worker-panel: $msg" >&2
+    if ! interactive && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+        local text="$msg
+
+Log: $LOG"
+        if command -v zenity >/dev/null 2>&1; then
+            zenity --error --title="$TITLE" --width=560 --no-markup --text="$text" >/dev/null 2>&1
+        elif command -v kdialog >/dev/null 2>&1; then
+            kdialog --title "$TITLE" --error "$text" >/dev/null 2>&1
+        elif command -v notify-send >/dev/null 2>&1; then
+            notify-send --urgency=critical "$TITLE" "$text" >/dev/null 2>&1
+        elif command -v xmessage >/dev/null 2>&1; then
+            xmessage -center "$TITLE: $text" >/dev/null 2>&1
+        fi
+    fi
+    exit 1
+}
+
+has_pyside() { "$1" -c 'import PySide6.QtUiTools' >/dev/null 2>&1; }
+
+pick_python() {
+    local top candidate
+    top="$(git -C "$SYSTEM" rev-parse --show-toplevel 2>/dev/null || true)"
+    for candidate in "${DEVSYS_PYTHON:-}" "$SYSTEM/.venv/bin/python3" "${top:+$top/.venv/bin/python3}" python3; do
+        [ -n "$candidate" ] || continue
+        command -v "$candidate" >/dev/null 2>&1 || [ -x "$candidate" ] || continue
+        if has_pyside "$candidate"; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+[ -f "$HERE/panel/worker_panel.py" ] || fail "the panel is missing: $HERE/panel/worker_panel.py"
+command -v python3 >/dev/null 2>&1 || [ -n "${DEVSYS_PYTHON:-}" ] || fail "no python3 on PATH ($PATH)"
+PY="$(pick_python)" || fail "no Python with PySide6 found (tried \$DEVSYS_PYTHON, $SYSTEM/.venv, the project's .venv and python3 on PATH). Install it with: python3 -m pip install --user PySide6"
+
+if interactive; then
+    exec "$PY" "$HERE/panel/worker_panel.py" "$@"
+fi
+log "start: $PY $HERE/panel/worker_panel.py $* (system $SYSTEM)"
+"$PY" "$HERE/panel/worker_panel.py" "$@" >> "$LOG" 2>&1
+rc=$?
+if [ "$rc" -eq 3 ]; then          # worker_panel.REPORTED: already shown in the panel's own dialog
+    log "exit 3 (start failure reported by the panel)"
+    exit 1
+elif [ "$rc" -ne 0 ]; then
+    fail "the panel exited with status $rc. Last log lines:
+$(tail -n 12 "$LOG" 2>/dev/null)"
+fi
+log "exit 0"
+exit 0
