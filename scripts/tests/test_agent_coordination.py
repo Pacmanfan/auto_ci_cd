@@ -540,6 +540,33 @@ class Dashboard(BusBase):
                              "--once", "--json"], capture_output=True, text=True, env=self.p.env, timeout=60)
         self.assertEqual(json.loads(cp.stdout)["pool"]["max_workers"], 1)
 
+    def test_the_plain_view_needs_no_curses(self):
+        # PORT-005: what runs where curses is missing (Windows). It redraws until interrupted.
+        p = subprocess.Popen([sys.executable, "-c",
+                              "import sys, builtins\n"
+                              "real = builtins.__import__\n"
+                              "def no_curses(name, *a, **k):\n"
+                              "    if name == 'curses': raise ImportError('no curses here')\n"
+                              "    return real(name, *a, **k)\n"
+                              "builtins.__import__ = no_curses\n"
+                              f"sys.argv = ['dash.py', '--root', {str(self.root)!r}, '--interval', '0.5']\n"
+                              f"sys.path.insert(0, {str(FRAMEWORK / 'tools' / 'panel')!r})\n"
+                              "import dash, os\n"
+                              "sys.stdout.isatty = lambda: True\n"
+                              "raise SystemExit(dash.main())\n"],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.p.env, text=True)
+        try:
+            out = p.stdout.readline() + p.stdout.readline() + p.stdout.readline()
+        finally:
+            p.terminate()
+            p.wait(timeout=20)
+        self.assertIn("dashboard", out)
+        rest, err = p.stdout.read(), p.stderr.read()
+        p.stdout.close()
+        p.stderr.close()
+        self.assertIn("WORKERS", out + rest)
+        self.assertNotIn("Traceback", err)
+
     def test_keys_act_through_the_same_operator_actions(self):
         import dash
         bus.register(self.root, A1)

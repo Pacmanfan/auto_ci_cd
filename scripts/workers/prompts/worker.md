@@ -32,7 +32,9 @@ ${previous_attempts}
 
 ## How this request is processed
 
-The development system's tools are in `${scripts}/` (also `$DEVSYS_SCRIPTS`);
+The development system's tools are Python scripts in `${scripts}/` (also
+`$DEVSYS_SCRIPTS`). Where a script cannot be executed directly (Windows /
+PowerShell), run it with the interpreter: `${python} ${scripts}/<tool>.py ...`;
 its records (requests, requirements, decisions, work, evidence) are under
 `${system_dir}/`. Paths you register or commit are repository paths, relative
 to `${work_dir}`. Follow `${agents_md}` "Request Processing" end to end. The

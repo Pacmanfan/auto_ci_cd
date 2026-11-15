@@ -53,7 +53,8 @@ def _command(root: Path, wid: str) -> tuple[list, str | None]:
     if not command:
         return [], (f"the agent command of profile {profile!r} is empty (workers.agent.command is empty or "
                     "workers.profiles): no agent to run (docs/process/agent-profiles.md)")
-    exe = str(command[0]).format(scripts=str(SCRIPTS_DIR), session_id="", name="", attempt_dir="")
+    exe = str(command[0]).format(scripts=str(SCRIPTS_DIR), session_id="", name="", attempt_dir="",
+                                python=sys.executable)
     if not shutil.which(exe):
         # The worker inherits this PATH; it could claim a request and then not
         # launch its agent.

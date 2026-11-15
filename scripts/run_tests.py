@@ -613,6 +613,10 @@ def make_jobs(suite, name, group, build_dir, graph, tracked, cache, args, reason
                     status, detail = "STALE", f"{binary.name}: {why}; rebuild (--build) or --allow-stale"
     else:
         command = list(group.get("command") or suite["command"])
+        if command and command[0] == "python3":
+            # The registry's portable spelling of "this Python": Windows has no
+            # python3 executable on PATH (tools/audit_system/checks.py does the same).
+            command[0] = sys.executable
     problem = requirement_problem(list(suite.get("requires", [])) + list(group.get("requires", [])))
     if problem and status == "PENDING":
         status, detail = "BLOCKED", problem

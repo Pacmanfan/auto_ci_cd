@@ -55,7 +55,7 @@ HTTP_FOR = {proc.NOT_FOUND: HTTPStatus.NOT_FOUND, proc.INVALID: HTTPStatus.BAD_R
 
 class Panel(ThreadingHTTPServer):
     daemon_threads = True
-    allow_reuse_address = True
+    allow_reuse_address = os.name != "nt"      # on Windows it would let two servers share the port
 
     def __init__(self, addr, root: Path, token: str, interval: float = 1.5):
         super().__init__(addr, Handler)

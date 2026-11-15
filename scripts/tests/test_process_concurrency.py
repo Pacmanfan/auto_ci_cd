@@ -141,16 +141,20 @@ class Base(unittest.TestCase):
 
 class RequestIdAllocation(Base):
     def test_completed_request_id_is_never_reused(self):
-        self.repo.add_request("completed", f"REQ-CHAT-{TODAY}-007", "done")
+        # The date now, not the one at import: a suite that runs across local
+        # midnight would otherwise compare against yesterday's series.
+        today = proc.request_date()["yyyymmdd"]
+        self.repo.add_request("completed", f"REQ-CHAT-{today}-007", "done")
         cp = self.repo.run("create_request.py", "--source", "chat", "--text", "a brand new request")
         self.assertEqual(cp.returncode, 0, cp.stderr)
         rid = self.rid_of(cp)
-        self.assertNotEqual(rid, f"REQ-CHAT-{TODAY}-007")
+        self.assertNotEqual(rid, f"REQ-CHAT-{today}-007")
         self.assertGreater(int(rid.rsplit("-", 1)[1]), 7)
 
     def test_rejected_and_needs_review_ids_are_never_reused(self):
-        self.repo.add_request("rejected", f"REQ-CHAT-{TODAY}-011", "rej")
-        self.repo.add_request("needs-review", f"REQ-CHAT-{TODAY}-012", "nr")
+        today = proc.request_date()["yyyymmdd"]
+        self.repo.add_request("rejected", f"REQ-CHAT-{today}-011", "rej")
+        self.repo.add_request("needs-review", f"REQ-CHAT-{today}-012", "nr")
         rid = self.rid_of(self.repo.run("create_request.py", "--source", "chat", "--text", "another request"))
         self.assertGreaterEqual(int(rid.rsplit("-", 1)[1]), 13)
 

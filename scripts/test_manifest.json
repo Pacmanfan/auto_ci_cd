@@ -68,8 +68,9 @@
    "kind": "command",
    "results": "exit",
    "command": [
-    "bash",
-    "scripts/verify_development_system.sh"
+    "python3",
+    "scripts/devsys.py",
+    "verify-structure"
    ],
    "env": {
     "DEVSYS_SKIP_UNITTESTS": "1"

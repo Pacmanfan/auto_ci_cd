@@ -3,3 +3,4 @@
 Format: `WORK-ID | status | title | record | requirements | evidence`
 
 WORK-000001 | completed | Agent coordination: roster, message bus, web control panel, terminal dashboard, agent profiles | completed/WORK-000001-agent-coordination-roster-message-bus-we.md | COORD-001, COORD-002, COORD-003, COORD-004, COORD-005, COORD-006, COORD-007, COORD-008, COORD-009, WORKER-006, WORKER-012 | VER-000001
+WORK-000002 | completed | Windows and PowerShell: liveness, shell-free commands, UTF-8, curses-free dashboard | completed/WORK-000002-windows-and-powershell-liveness-shell-fr.md | PORT-001, PORT-002, PORT-003, PORT-004, PORT-005, PORT-006 | VER-000002

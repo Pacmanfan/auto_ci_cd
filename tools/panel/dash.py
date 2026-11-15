@@ -5,6 +5,8 @@ conversation between agents, with operator control from the keyboard
 
     python3 tools/panel/dash.py [--root DIR] [--interval S]     # live (curses)
     python3 tools/panel/dash.py --once [--width N] [--json]      # print one frame and exit (pipes, CI, tests)
+    python3 tools/panel/dash.py --plain                          # live without curses (the default where curses
+                                                                 # is missing: Windows / PowerShell)
 
 Keys:  Up/Down or j/k select a worker    s start    x stop    X stop now
        r recover    e enable / disable   a start all    z stop all
@@ -251,6 +253,77 @@ class Dash:
             last = 0.0                                       # show the effect of the action at once
 
 
+def plain_loop(dash: "Dash", width: int = 0) -> None:
+    """Live view without curses: the frame is redrawn in place with ANSI
+    sequences (Windows Terminal, PowerShell 7 and every POSIX terminal). On
+    Windows the same keys work (read with msvcrt, prompts with input());
+    elsewhere it only watches: use the curses view to act."""
+    import shutil
+    try:
+        import msvcrt
+    except ImportError:
+        msvcrt = None
+    if os.name == "nt":
+        os.system("")                                        # switches the classic console to ANSI processing
+    keys = {"s": "start", "x": "stop", "X": "stop_now", "r": "recover"}
+
+    def ask(label: str) -> str:
+        try:
+            return input("\n" + label).strip()
+        except EOFError:
+            return ""
+
+    last = 0.0
+    while True:
+        if time.monotonic() - last >= dash.interval:
+            dash.snap, last = overview.snapshot(dash.root), time.monotonic()
+            size = shutil.get_terminal_size((110, 40))
+            w = width or size.columns - 1
+            lines = frame(dash.snap, w).splitlines()
+            head = status_lines(dash.snap, w, dash.selected)
+            lines[2:2 + len(head)] = head                    # the selected worker's marker
+            room = max(5, size.lines - 2)
+            if len(lines) > room:                            # keep the top, and the newest messages
+                keep = min(len(head) + 4, room - 3)
+                lines = lines[:keep] + ["..."] + lines[-(room - keep - 1):]
+            sys.stdout.write("\x1b[H\x1b[2J" + "\n".join(lines) + "\n" + _clip(
+                dash.note if msvcrt else "watch only (Ctrl-C quits); keys need the curses view", w) + "\n")
+            sys.stdout.flush()
+        if msvcrt is None or not msvcrt.kbhit():
+            time.sleep(0.2)
+            continue
+        c = msvcrt.getwch()
+        if c in ("\x00", "\xe0"):                           # arrow keys arrive as a prefix and a code
+            c = {"H": "k", "P": "j"}.get(msvcrt.getwch(), "")
+        n, wid = len(dash.snap["pool"]["workers"]), dash.worker()
+        if c == "q":
+            return
+        if c == "j":
+            dash.selected = min(n - 1, dash.selected + 1) if n else 0
+        elif c == "k":
+            dash.selected = max(0, dash.selected - 1)
+        elif c in keys and wid:
+            if c != "X" or ask(f"end {wid}'s running session now? (y/N) ").lower() == "y":
+                dash.do(keys[c], worker=wid)
+        elif c == "e" and wid:
+            enabled = next(x for x in dash.snap["pool"]["workers"] if x["id"] == wid)["enabled"]
+            dash.do("disable" if enabled else "enable", worker=wid)
+        elif c == "a":
+            dash.do("start", worker="all")
+        elif c == "z":
+            dash.do("stop", worker="all")
+        elif c == "m":
+            to = ask("to (all, a name or a role): ") or "all"
+            body = ask(f"message to {to}: ")
+            if body:
+                dash.do("message", to=to, body=body)
+        elif c == "n":
+            text = ask("new request: ")
+            if text:
+                dash.do("submit", text=text)
+        last = 0.0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", default=None, help="the development system to show (default: this checkout)")
@@ -258,6 +331,7 @@ def main(argv=None) -> int:
     ap.add_argument("--once", action="store_true", help="print one frame and exit")
     ap.add_argument("--width", type=int, default=0)
     ap.add_argument("--json", action="store_true", help="with --once: the snapshot as JSON")
+    ap.add_argument("--plain", action="store_true", help="live view without curses (automatic where curses is missing)")
     a = ap.parse_args(argv)
     root = Path(a.root).resolve() if a.root else proc.repo_root()
     os.environ["AGENT_PROCESS_ROOT"] = str(root)            # workers started here serve this root
@@ -268,9 +342,17 @@ def main(argv=None) -> int:
         else:
             sys.stdout.write(frame(snap, a.width or 110))
         return 0
-    import curses
+    dash = Dash(root, max(0.5, a.interval))
     try:
-        curses.wrapper(Dash(root, max(0.5, a.interval)).loop)
+        if not a.plain:
+            try:
+                import curses
+            except ImportError:                              # Windows: curses is not in the standard library
+                a.plain = True
+        if a.plain:
+            plain_loop(dash, a.width)
+        else:
+            curses.wrapper(dash.loop)
     except KeyboardInterrupt:
         pass
     return 0

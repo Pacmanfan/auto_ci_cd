@@ -117,6 +117,7 @@ def build(root: Path, *, worker_id: str, request: dict, request_path: str, agent
         "max_runtime_minutes": int(max_runtime_minutes), "wrap_up_minutes": max(1, int(max_runtime_minutes * 0.8)),
         "report_schema": json.dumps(REPORT_SCHEMA, indent=2), "previous_attempts": render_previous(prev),
         "scripts": scripts_path(root, work_dir),
+        "python": Path(sys.executable).name if Path(sys.executable).name.lower().startswith("python") else sys.executable,
         "system_dir": system_path(root, work_dir),
         "agents_md": (PurePosixPath(system_path(root, work_dir)) / "AGENTS.md").as_posix(),
     }

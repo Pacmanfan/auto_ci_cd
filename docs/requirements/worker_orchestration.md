@@ -164,8 +164,11 @@ speaking the JSON-lines protocol of `scripts/workers/agent.py`).
   directory (`scripts/workers/profiles/`, only `*_adapter.py`), which holds
   the wrappers that translate an agent's own event stream into the protocol
   (ADR-000201). The adapters' file names stay neutral.
-- **Input is not the system:** request records under `requests/` quote what
-  a person asked for and are outside this rule.
+- **Records are not the system:** request records under `requests/` quote
+  what a person asked for, and evidence under `evidence/` (run and gate
+  records) states what ran on which machine with which paths. Both are
+  outside this rule and the machine-path rule; neither is installed with
+  the framework.
 
 ## WORKER-013 — Relative to the containing project
 

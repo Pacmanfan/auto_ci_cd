@@ -20,8 +20,10 @@ rest of the tooling stays portable:
 * ``find_process(markers)``          the live process carrying these environment markers
 * ``kill_tree(pid, grace)``          terminate a process, its group and descendants
 
-The POSIX implementation is the supported one; the Windows branches are
-best-effort so that a later port has one place to complete.
+The POSIX implementation is the supported and tested one. The Windows
+branches (process existence and creation time through the Win32 API, process
+trees through ``taskkill``) are written from the API documentation and are
+NOT yet verified on a Windows host (docs/process/portability.md, PORT-001..006).
 """
 from __future__ import annotations
 
@@ -39,6 +41,60 @@ else:
     import fcntl
 
 ALIVE, DEAD, UNKNOWN = "ALIVE", "DEAD", "UNKNOWN"
+
+
+def utf8_stdio() -> None:
+    """On Windows the console and pipes default to a legacy code page: the
+    tools print and read UTF-8 (records, git output), so their own streams
+    are switched to UTF-8 and unencodable characters are replaced instead of
+    raising. Decoding other programs' output and files opened without an
+    encoding still follow the locale: run with PYTHONUTF8=1 (the doctor warns)."""
+    if not WINDOWS:
+        return
+    for stream in (sys.stdout, sys.stderr):  # pragma: no cover
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
+utf8_stdio()
+
+
+# ------------------------------------------------------------------ Win32
+def _win_process(pid: int):  # pragma: no cover - exercised only on Windows
+    """(exists, creation time as a string | None) from the Win32 API, or
+    (None, None) when the process cannot be queried (not: does not exist)."""
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k32.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+    k32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    PROCESS_QUERY_LIMITED_INFORMATION, STILL_ACTIVE = 0x1000, 259
+    ERROR_INVALID_PARAMETER, ERROR_ACCESS_DENIED = 87, 5
+    handle = k32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+    if not handle:
+        err = ctypes.get_last_error()
+        if err == ERROR_INVALID_PARAMETER:
+            return False, None                   # no such process
+        if err == ERROR_ACCESS_DENIED:
+            return True, None                    # exists, owned by someone else
+        return None, None
+    try:
+        code = wintypes.DWORD()
+        if not k32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return None, None
+        if code.value != STILL_ACTIVE:
+            return False, None                   # exited; the handle kept the pid readable
+        created, exited, kernel, user = (wintypes.FILETIME() for _ in range(4))
+        if not k32.GetProcessTimes(handle, *(ctypes.byref(t) for t in (created, exited, kernel, user))):
+            return True, None
+        return True, str((created.dwHighDateTime << 32) | created.dwLowDateTime)
+    finally:
+        k32.CloseHandle(handle)
 
 
 # ------------------------------------------------------------------ locking
@@ -104,7 +160,13 @@ def boot_id() -> str | None:
 
 
 def process_start(pid: int) -> str | None:
-    """Kernel start time of ``pid`` (clock ticks since boot, Linux), or None."""
+    """Kernel start time of ``pid`` (clock ticks since boot on Linux, the
+    creation FILETIME on Windows), or None."""
+    if WINDOWS:  # pragma: no cover
+        try:
+            return _win_process(pid)[1]
+        except Exception:
+            return None
     try:
         stat = Path(f"/proc/{int(pid)}/stat").read_text()
     except (OSError, ValueError):
@@ -118,7 +180,10 @@ def pid_alive(pid: int) -> bool | None:
     if pid is None or int(pid) <= 0:
         return False
     if WINDOWS:  # pragma: no cover
-        return None
+        try:
+            return _win_process(pid)[0]
+        except Exception:
+            return None
     try:
         os.kill(int(pid), 0)
         return True
@@ -149,8 +214,10 @@ def signal_group(pid: int, hard: bool = False) -> bool:
     when it no longer exists."""
     if WINDOWS:  # pragma: no cover
         import subprocess
+        # Without /F taskkill only asks windowed programs to close; a console
+        # program (every agent CLI) ignores it, so soft is tried, hard works.
         r = subprocess.run(["taskkill", "/T", *(["/F"] if hard else []), "/PID", str(pid)], capture_output=True)
-        return r.returncode == 0
+        return r.returncode == 0 or pid_alive(pid) is True
     import signal
     try:
         os.killpg(int(pid), signal.SIGKILL if hard else signal.SIGTERM)
@@ -268,6 +335,14 @@ def kill_tree(pid: int, grace_seconds: float = 30) -> None:
     started (a worker's own agent session)."""
     import signal
     import time
+    if WINDOWS:  # pragma: no cover
+        # No process groups to signal and no SIGKILL: taskkill walks the tree.
+        signal_group(pid, hard=False)
+        deadline = time.time() + grace_seconds
+        while time.time() < deadline and pid_alive(pid):
+            time.sleep(0.2)
+        signal_group(pid, hard=True)
+        return
     targets = [int(pid)] + descendants(pid)
     for hard in (False, True):
         signal_group(pid, hard=hard)

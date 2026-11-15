@@ -22,8 +22,12 @@ provided the command:
   message with it as a fenced JSON block.
 
 The placeholders `{session_id}` (a UUID), `{name}` (worker and attempt),
-`{attempt_dir}` (the attempt's record directory) and `{scripts}` (this
-system's scripts directory) are substituted in every argument. An agent that
+`{attempt_dir}` (the attempt's record directory), `{scripts}` (this
+system's scripts directory) and `{python}` (the interpreter running the
+worker; portable where `python3` is not a command) are substituted in every
+argument. On Windows the command's first word is resolved as the shell
+would, so a CLI installed as a `.cmd` shim starts under its bare name
+(`docs/process/portability.md`). An agent that
 speaks another format is wrapped in a small adapter script that translates
 to this protocol (`scripts/workers/profiles/`).
 
@@ -102,7 +106,7 @@ writes the `result` event when the CLI exits:
 "workers": {
   "profiles": {
     "opencode": {
-      "command": ["python3", "{scripts}/workers/profiles/event_stream_adapter.py", "--session-id", "{session_id}",
+      "command": ["{python}", "{scripts}/workers/profiles/event_stream_adapter.py", "--session-id", "{session_id}",
                   "--", "opencode", "run", "--format", "json", "--auto", "--title", "{name}"],
       "env_scrub": [],
       "rate_limit_patterns": ["usage limit", "rate limit", "limit reached", "quota"]

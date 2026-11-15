@@ -441,9 +441,10 @@ class Identity(unittest.TestCase):
     # the adapters directory beside the worker code.
     EXCEPTION = "docs/process/agent-profiles.md"
     EXCEPTION_DIR = "scripts/workers/profiles/"
-    # Request records quote what a person asked for, verbatim; they are input
-    # to the system, not part of it.
-    INPUT_DIR = "requests/"
+    # Records, not the system: request records quote what a person asked for,
+    # verbatim; evidence (run and gate records) states what ran on which
+    # machine with which paths. Neither is installed with the framework.
+    RECORD_DIRS = ("requests/", "evidence/")
     SKIP = {".git", "tmp", "build", "__pycache__", "node_modules"}
 
     def files(self):
@@ -451,12 +452,13 @@ class Identity(unittest.TestCase):
             rel = p.relative_to(FRAMEWORK)
             if p.is_file() and not (set(rel.parts) & self.SKIP) and rel.parts[:2] != (".audit", "runs") \
                     and rel.parts[:3] not in ((".agent", "state", "runtime"), (".agent", "state", "claims")):
-                yield rel.as_posix(), p                  # both are untracked runtime state (.gitignore)
+                if not rel.as_posix().startswith(self.RECORD_DIRS):
+                    yield rel.as_posix(), p
 
     def test_no_vendor_identity_outside_the_documented_exception(self):
         hits = []
         for rel, p in self.files():
-            if rel == self.EXCEPTION or rel.startswith((self.EXCEPTION_DIR, self.INPUT_DIR)):
+            if rel == self.EXCEPTION or rel.startswith(self.EXCEPTION_DIR):
                 continue
             if self.VENDOR.search(rel):
                 hits.append(f"{rel} (name)")

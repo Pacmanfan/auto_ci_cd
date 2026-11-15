@@ -57,7 +57,9 @@ def main():
     budget = float(cfgmod.get("health.structure_timeout_seconds", ROOT, 300))
     checks = []
 
-    rc, out = run_script(["bash", "scripts/verify_development_system.sh"], budget)
+    # The structural check itself (what scripts/verify_development_system.sh wraps
+    # for POSIX shells), run directly so that no bash is needed.
+    rc, out = run_script([sys.executable, "scripts/devsys.py", "verify-structure"], budget)
     checks.append(("verify_development_system", level_of(rc, out), out.splitlines()[-1] if out else ""))
     for name, cmd in (("drift_detect", [sys.executable, "scripts/drift_detect.py"]),
                       ("doc_integrity", [sys.executable, "scripts/doc_integrity.py"]),

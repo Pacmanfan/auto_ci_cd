@@ -318,6 +318,16 @@ def doctor(root: Path) -> dict:
     add("platform", "PASS" if p["posix"] else "WARN",
         f"{p['platform']}; process verification {'available' if p['process_start_available'] else 'limited'}"
         + ("" if p["posix"] else " (POSIX is the supported platform; see docs/process/portability.md)"))
+    if plat.WINDOWS:  # pragma: no cover - exercised only on Windows
+        # docs/process/portability.md "Windows and PowerShell" (PORT-004).
+        add("utf-8 mode", "PASS" if sys.flags.utf8_mode else "WARN",
+            "PYTHONUTF8=1" if sys.flags.utf8_mode else
+            "set $env:PYTHONUTF8 = '1': records and git output are UTF-8, the default code page is not")
+        crlf = subprocess.run(["git", "config", "--get", "core.autocrlf"], cwd=root, capture_output=True, text=True)
+        value = crlf.stdout.strip().lower() or "unset"
+        add("git core.autocrlf", "PASS" if value == "false" else "WARN",
+            value if value == "false" else
+            f"{value}: run `git config core.autocrlf false` (owned-path commits compare blobs byte for byte)")
     problems = cfgmod.validate(root)
     add("devsys.json", "FAIL" if problems else ("PASS" if (root / cfgmod.CONFIG_FILE).exists() else "WARN"),
         "; ".join(problems) if problems else ("valid" if (root / cfgmod.CONFIG_FILE).exists()

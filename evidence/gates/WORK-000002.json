@@ -1,0 +1,47 @@
+{
+ "work": "WORK-000002",
+ "runs": [
+  {
+   "at": "2026-11-15T05:09:05.683912+00:00",
+   "verdict": "PASS",
+   "gate_version": 3,
+   "work": "WORK-000002",
+   "request": "2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.md",
+   "request_id": "REQ-CHAT-20261114-002",
+   "request_fingerprint": "41ca765b5a305d8d3ab4e4a54df13a6cdbd319b4479b56b39d761e84b77dd02d",
+   "request_code_paths": [
+    ".audit/manifest.json",
+    "scripts/agent_process.py",
+    "scripts/devsys.py",
+    "scripts/devsys_platform.py",
+    "scripts/health_check.py",
+    "scripts/run_tests.py",
+    "scripts/templates/audit_manifest.json",
+    "scripts/templates/requirements.txt",
+    "scripts/templates/test_manifest.json",
+    "scripts/test_manifest.json",
+    "scripts/tests/test_agent_coordination.py",
+    "scripts/tests/test_devsys_tooling.py",
+    "scripts/tests/test_process_concurrency.py",
+    "scripts/tests/test_workers.py",
+    "scripts/workers/agent.py",
+    "scripts/workers/pool.py",
+    "scripts/workers/profiles/event_stream_adapter.py",
+    "scripts/workers/prompt.py",
+    "tools/panel/dash.py",
+    "tools/panel/web_panel.py"
+   ],
+   "test_runs": [
+    "20261115T000456-3184705"
+   ],
+   "evidence": [
+    "VER-000002"
+   ],
+   "head": "792fd3f13d0a6a78251b0c77dab633ba151dc3a8",
+   "agent_id": "agent-dev-20261114230032-8bee2e",
+   "fails": [],
+   "warns": [],
+   "passes": 14
+  }
+ ]
+}

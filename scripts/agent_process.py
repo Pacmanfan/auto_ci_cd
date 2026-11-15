@@ -97,8 +97,10 @@ def git(root: Path, *args: str, env: dict | None = None, check: bool = True,
         input: str | None = None) -> str:
     """Run git in the checkout ``root`` belongs to, so pathspecs are
     repository paths (as git itself prints them)."""
+    # git writes UTF-8 whatever the locale (a Windows code page would garble or
+    # refuse non-ASCII paths and messages).
     r = subprocess.run(["git", *args], cwd=str(checkout_root(root)), capture_output=True, text=True,
-                       env=env, input=input)
+                       encoding="utf-8", errors="replace", env=env, input=input)
     if check and r.returncode != 0:
         raise ProcessError(INVALID, f"git {' '.join(args)} failed ({r.returncode}): {r.stderr.strip()}")
     return r.stdout
@@ -295,7 +297,16 @@ def atomic_write_text(path: Path, text: str) -> None:
         f.write(text)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, path)
+    # Windows refuses to replace a file that another process has open (a panel
+    # reading a record): retry briefly instead of failing the writer.
+    for attempt in range(40):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if not plat.WINDOWS or attempt == 39:
+                raise
+            time.sleep(0.025)
 
 
 def create_exclusive_text(path: Path, text: str) -> None:

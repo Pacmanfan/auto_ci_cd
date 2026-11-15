@@ -161,6 +161,10 @@ def main(argv=None) -> int:
     prompt = sys.stdin.read()
     if a.prompt == "arg":
         command.append(prompt)
+    if os.name == "nt":
+        # A CLI installed as a .cmd / .bat shim is not found under its bare name.
+        import shutil
+        command[0] = shutil.which(command[0]) or command[0]
     tr = Translator(a.session_id, a.dialect)
     started = time.time()
     emit({"type": "system", "subtype": "init", "session_id": a.session_id, "cwd": os.getcwd()})
@@ -173,8 +177,10 @@ def main(argv=None) -> int:
         return 127
     # A stop ends the whole process group (the worker does that); a signal sent
     # to the wrapper alone is passed on so the agent never outlives it.
-    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
-        signal.signal(sig, lambda s, _f: child.send_signal(s))
+    for name in ("SIGTERM", "SIGINT", "SIGHUP", "SIGBREAK"):
+        sig = getattr(signal, name, None)                    # SIGHUP: POSIX only; SIGBREAK: Windows only
+        if sig is not None:
+            signal.signal(sig, lambda _s, _f: child.terminate())
     if a.prompt == "stdin":
         try:
             child.stdin.write(prompt.encode("utf-8"))
@@ -191,7 +197,7 @@ def main(argv=None) -> int:
             if not text:
                 continue
             try:
-                event = json.loads(text)
+                event = json.loads(text.lstrip("\ufeff"))
             except ValueError:
                 event = None
             if not isinstance(event, dict):

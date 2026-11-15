@@ -282,13 +282,14 @@
   {
    "id": "proc.structure",
    "domain": "process",
-   "title": "Development-system structure by scripts/verify_development_system.sh (unit tests excluded: the scripts suite runs them)",
+   "title": "Development-system structure by scripts/devsys.py verify-structure (unit tests excluded: the scripts suite runs them)",
    "rule": "REQ-DEVOPS-001..014 structure",
    "source": "docs/requirements/development_operations.md",
    "kind": "command",
    "command": [
-    "bash",
-    "scripts/verify_development_system.sh"
+    "python3",
+    "scripts/devsys.py",
+    "verify-structure"
    ],
    "env": {
     "DEVSYS_SKIP_UNITTESTS": "1"

@@ -82,9 +82,23 @@ def build_cmd(root: Path, *, session_id: str, name: str, attempt_dir: Path, work
                             "docs/process/agent-profiles.md)")
     # {scripts}: this system's scripts directory, for profiles that wrap the
     # agent in an adapter shipped with the system.
+    # {python}: the interpreter running the worker ("python3" is not a command
+    # on every system).
     values = {"session_id": session_id, "name": name, "attempt_dir": str(attempt_dir),
-              "scripts": str(Path(__file__).resolve().parent.parent)}
-    return [str(a).format(**values) for a in template]
+              "scripts": str(Path(__file__).resolve().parent.parent), "python": sys.executable}
+    return resolve_executable([str(a).format(**values) for a in template])
+
+
+def resolve_executable(cmd: list[str]) -> list[str]:
+    """On Windows a command installed as a ``.cmd`` / ``.bat`` shim (most
+    agent CLIs installed by a package manager) is not found by process
+    creation under its bare name: use the path the shell would find."""
+    if plat.WINDOWS and cmd:  # pragma: no cover
+        import shutil
+        found = shutil.which(cmd[0])
+        if found:
+            return [found, *cmd[1:]]
+    return cmd
 
 
 def build_env(root: Path, extra: dict, worker: str | None = None) -> dict:

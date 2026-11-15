@@ -1,0 +1,271 @@
+{
+ "run_id": "20261115T000456-3184705",
+ "runner_version": 2,
+ "started_at": "2026-11-15T05:08:50.843221+00:00",
+ "wall_seconds": 234.5,
+ "tier": "t2",
+ "scope": "affected",
+ "changes_from": "request 2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.md",
+ "changed": [
+  ".audit/manifest.json",
+  "docs/process/agent-coordination.md",
+  "docs/process/agent-profiles.md",
+  "docs/process/portability.md",
+  "docs/requirements/portability.md",
+  "docs/requirements/requirements.txt",
+  "docs/requirements/worker_orchestration.md",
+  "docs/verification/tests.md",
+  "requests/inbox/2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.json",
+  "requests/inbox/2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.md",
+  "requests/processing/2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.json",
+  "requests/processing/2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.md",
+  "scripts/agent_process.py",
+  "scripts/devsys.py",
+  "scripts/devsys_platform.py",
+  "scripts/health_check.py",
+  "scripts/run_tests.py",
+  "scripts/templates/audit_manifest.json",
+  "scripts/templates/requirements.txt",
+  "scripts/templates/test_manifest.json",
+  "scripts/test_manifest.json",
+  "scripts/tests/test_agent_coordination.py",
+  "scripts/tests/test_devsys_tooling.py",
+  "scripts/tests/test_process_concurrency.py",
+  "scripts/tests/test_workers.py",
+  "scripts/workers/agent.py",
+  "scripts/workers/pool.py",
+  "scripts/workers/profiles/event_stream_adapter.py",
+  "scripts/workers/prompt.py",
+  "scripts/workers/prompts/worker.md",
+  "tools/panel/dash.py",
+  "tools/panel/web_panel.py",
+  "work/active/WORK-000002-windows-and-powershell-liveness-shell-fr.md",
+  "work/work.txt"
+ ],
+ "unmapped": [],
+ "head": "792fd3f13d0a6a78251b0c77dab633ba151dc3a8",
+ "describe": "792fd3f",
+ "provenance": {
+  "dirty": true,
+  "dirty_paths": 28,
+  "diff_sha256": "9f2b1436f0b5560c8a19a830f76f47384338238f75edc1041e36ebd128a0f2e8",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "git": "git version 2.43.0",
+  "manifest_sha256": "5d300824ee592bf4da0e93a1343c02ac758f689500a24d2471de3236501dbca4",
+  "config_sha256": "a78e7b33ab40a988eda3df291092c6f06d751a96e98749b916ee44a9563e9f1a",
+  "build_system": "none"
+ },
+ "build_dir": "/home/dev/auto_ci_cd/build/debug",
+ "jobs": 8,
+ "host": "dev",
+ "request": "2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.md",
+ "request_fingerprint": "41ca765b5a305d8d3ab4e4a54df13a6cdbd319b4479b56b39d761e84b77dd02d",
+ "request_code_paths": [
+  ".audit/manifest.json",
+  "scripts/agent_process.py",
+  "scripts/devsys.py",
+  "scripts/devsys_platform.py",
+  "scripts/health_check.py",
+  "scripts/run_tests.py",
+  "scripts/templates/audit_manifest.json",
+  "scripts/templates/requirements.txt",
+  "scripts/templates/test_manifest.json",
+  "scripts/test_manifest.json",
+  "scripts/tests/test_agent_coordination.py",
+  "scripts/tests/test_devsys_tooling.py",
+  "scripts/tests/test_process_concurrency.py",
+  "scripts/tests/test_workers.py",
+  "scripts/workers/agent.py",
+  "scripts/workers/pool.py",
+  "scripts/workers/profiles/event_stream_adapter.py",
+  "scripts/workers/prompt.py",
+  "tools/panel/dash.py",
+  "tools/panel/web_panel.py"
+ ],
+ "allow_stale": false,
+ "classification": "PASS",
+ "warnings": [
+  "--build: build.system is 'none' in devsys.json; nothing was built"
+ ],
+ "groups": [
+  {
+   "suite": "devsys",
+   "group": "structure",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.17174404597608373,
+   "wall": 0.17174404597608373,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/devsys.py verify-structure",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "drift",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.16854474999126978,
+   "wall": 0.16854474999126978,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/drift_detect.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "doc_integrity",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.11679470801027492,
+   "wall": 0.11679470801027492,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/doc_integrity.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "invariants",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.06896021502325311,
+   "wall": 0.06896021502325311,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/invariant_check.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "scripts",
+   "group": "unit",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 234.45273952299613,
+   "wall": 234.45273952299613,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "input scripts/agent_process.py (+19)"
+   ],
+   "command": "python3 -m unittest discover -s scripts/tests",
+   "status": "PASS"
+  },
+  {
+   "suite": "audit_py",
+   "group": "unit",
+   "shards": 1,
+   "statuses": [
+    "CACHED"
+   ],
+   "seconds": 0.0,
+   "wall": 0.0,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [
+    "unchanged since run 20261114T235423-3122862 (2026-11-15T04:59:07)"
+   ],
+   "reasons": [
+    "input .audit/manifest.json"
+   ],
+   "command": "python3 -m unittest discover -s tools/audit_system/tests",
+   "status": "CACHED"
+  }
+ ],
+ "jobs_detail": [
+  {
+   "label": "devsys/structure",
+   "status": "PASS",
+   "seconds": 0.17,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/56-3184705/002/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/drift",
+   "status": "PASS",
+   "seconds": 0.17,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/56-3184705/004/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/doc_integrity",
+   "status": "PASS",
+   "seconds": 0.12,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/56-3184705/005/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/invariants",
+   "status": "PASS",
+   "seconds": 0.07,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/56-3184705/003/output.log",
+   "cases": []
+  },
+  {
+   "label": "scripts/unit",
+   "status": "PASS",
+   "seconds": 234.45,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/56-3184705/001/output.log",
+   "cases": []
+  },
+  {
+   "label": "audit_py/unit",
+   "status": "CACHED",
+   "seconds": 0.0,
+   "rc": null,
+   "detail": "unchanged since run 20261114T235423-3122862 (2026-11-15T04:59:07)",
+   "log": null,
+   "cases": []
+  }
+ ]
+}

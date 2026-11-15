@@ -1,0 +1,113 @@
+{
+  "request_id": "REQ-CHAT-20261114-002",
+  "source": "chat",
+  "type": "BUG",
+  "priority": "HIGH",
+  "created": "2026-11-14T23:48:01-05:00",
+  "created_utc": "2026-11-15T04:48:01+00:00",
+  "id_date": "2026-11-14",
+  "timezone": "EST (UTC-05:00)",
+  "status": "completed",
+  "original_text": "Windows support: make sure the development system, including the new agent coordination (message bus, web control panel, terminal dashboard, agent profiles and adapter), works under Windows and PowerShell. At least read through the code, identify the major issues, fix what can be fixed safely without a Windows machine, and record what remains.",
+  "file": "requests/inbox/2026-11-14-windows-support-make-sure-the--req-chat-20261114-002.md",
+  "attachments": [],
+  "context": "Chat 2026-11-14, two operator messages: 'We need to make sure this is all working under windows - at least read through it and spot any major issues.' and 'it should all work under powershell'. No Windows host is available to this session: findings come from reading the code.",
+  "text_sha256": "7ab9a4efb1c3e5cb0cae8bfb5e92d56e1a33aed26d98fca380d69f44eaf3f4b9",
+  "classification": {
+    "proposed_type": null,
+    "proposed_source": "heuristic",
+    "normalized_type": null,
+    "heuristic_type": "BUG",
+    "final_type": "BUG",
+    "confidence": "high",
+    "validation": "PASS",
+    "classifier_reason": "request statement is framed as bug: fix, fixed",
+    "correction_reason": null,
+    "normalization_note": null,
+    "evidence": [
+      {
+        "category": "BUG",
+        "where": "head",
+        "phrase": "fix",
+        "strength": "strong",
+        "note": "",
+        "sentence": "At least read through the code, identify the major issues, fix what can be fixed safely without a Windows machine, and record what remains."
+      },
+      {
+        "category": "BUG",
+        "where": "head",
+        "phrase": "fixed",
+        "strength": "strong",
+        "note": "",
+        "sentence": "At least read through the code, identify the major issues, fix what can be fixed safely without a Windows machine, and record what remains."
+      }
+    ],
+    "scores": {
+      "FEATURE": {
+        "head": 0,
+        "body": 0
+      },
+      "BUG": {
+        "head": 2,
+        "body": 0
+      },
+      "CRASH": {
+        "head": 0,
+        "body": 0
+      },
+      "REGRESSION": {
+        "head": 0,
+        "body": 0
+      },
+      "PERFORMANCE": {
+        "head": 0,
+        "body": 0
+      },
+      "REFACTOR": {
+        "head": 0,
+        "body": 0
+      },
+      "BUILD": {
+        "head": 0,
+        "body": 0
+      },
+      "DOCUMENTATION": {
+        "head": 0,
+        "body": 0
+      },
+      "INVESTIGATION": {
+        "head": 0,
+        "body": 0
+      },
+      "PROCESS-CHANGE": {
+        "head": 1,
+        "body": 0
+      }
+    },
+    "evidence_total": 3,
+    "validator": "scripts/request_classification.py"
+  },
+  "links": {
+    "work": [
+      "WORK-000002"
+    ]
+  },
+  "commits": [],
+  "resolution": {
+    "from": "processing",
+    "to": "completed",
+    "at": "2026-11-15T05:09:05.863381+00:00",
+    "by": "agent-dev-20261114230032-8bee2e",
+    "gates": [
+      {
+        "work": "WORK-000002",
+        "at": "2026-11-15T05:09:05.683912+00:00",
+        "verdict": "PASS",
+        "request_fingerprint": "41ca765b5a305d8d3ab4e4a54df13a6cdbd319b4479b56b39d761e84b77dd02d",
+        "test_runs": [
+          "20261115T000456-3184705"
+        ]
+      }
+    ]
+  }
+}

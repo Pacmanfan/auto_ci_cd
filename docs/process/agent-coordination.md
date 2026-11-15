@@ -71,7 +71,12 @@ use it only behind something you trust, and open the URL with its
 ```bash
 python3 tools/panel/dash.py [--interval 2] [--root DIR]    # live
 python3 tools/panel/dash.py --once [--width 120] [--json]   # one frame, for pipes and scripts
+python3 tools/panel/dash.py --plain                         # live without curses
 ```
+
+Where `curses` is missing (Windows / PowerShell) the plain view starts by
+itself, with the same keys; on other systems `--plain` only watches. For
+PowerShell usage see `docs/process/portability.md` "Windows and PowerShell".
 
 Keys: `Up`/`Down` (or `j`/`k`) select a worker; `s` start, `x` stop, `X` stop
 now, `r` recover, `e` enable / disable, `a` start all, `z` stop all; `m`

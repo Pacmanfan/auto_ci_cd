@@ -469,3 +469,92 @@ class Preflight(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WindowsBranches(unittest.TestCase):
+    """The Windows code paths (docs/requirements/portability.md PORT-001..006),
+    exercised on this host with the Win32 calls replaced: this checks their
+    logic, not Windows itself."""
+
+    def setUp(self):
+        sys.path.insert(0, str(SCRIPTS))
+        import devsys_platform as plat
+        self.plat = plat
+        self.saved = (plat.WINDOWS, getattr(plat, "_win_process"), plat.signal_group)
+        plat.WINDOWS = True
+
+    def tearDown(self):
+        self.plat.WINDOWS, self.plat._win_process, self.plat.signal_group = self.saved
+
+    def test_liveness_uses_process_existence_and_creation_time(self):
+        plat = self.plat
+        table = {100: (True, "T1"), 200: (False, None), 300: (None, None), 400: (True, None)}
+        plat._win_process = lambda pid: table[int(pid)]
+        self.assertEqual([plat.pid_alive(p) for p in (100, 200, 300, 400)], [True, False, None, True])
+        self.assertEqual((plat.process_start(100), plat.process_start(400)), ("T1", None))
+        ident = {"host": plat.hostname(), "boot_id": None, "pid": 100, "start": "T1"}
+        self.assertEqual(plat.verify_session(ident)[0], plat.ALIVE)
+        table[100] = (True, "T2")                              # the pid was reused by a later process
+        self.assertEqual(plat.verify_session(ident)[0], plat.DEAD)
+        self.assertEqual(plat.verify_session({**ident, "pid": 200})[0], plat.DEAD)
+        self.assertEqual(plat.verify_session({**ident, "pid": 300})[0], plat.UNKNOWN)
+
+        def broken(pid):
+            raise OSError("no kernel32")
+        plat._win_process = broken                             # an API failure is unknown, never an exception
+        self.assertEqual((plat.pid_alive(100), plat.process_start(100)), (None, None))
+
+    def test_kill_tree_asks_first_and_then_forces_the_whole_tree(self):
+        plat = self.plat
+        calls, alive = [], {"v": True}
+
+        def group(pid, hard=False):
+            calls.append((pid, hard))
+            if hard:
+                alive["v"] = False
+            return True
+        plat.signal_group = group
+        plat._win_process = lambda pid: (alive["v"], "T")
+        plat.kill_tree(4242, grace_seconds=0.3)
+        self.assertEqual(calls, [(4242, False), (4242, True)])
+
+    def test_an_agent_command_is_resolved_to_what_the_shell_would_run(self):
+        import shutil
+        from workers import agent
+        real = shutil.which
+        shutil.which = lambda name: {"agentcli": r"C:\\tools\\agentcli.CMD"}.get(name)
+        try:
+            self.assertEqual(agent.resolve_executable(["agentcli", "run"]), [r"C:\\tools\\agentcli.CMD", "run"])
+            self.assertEqual(agent.resolve_executable(["missing", "x"]), ["missing", "x"])
+            self.plat.WINDOWS = False
+            self.assertEqual(agent.resolve_executable(["agentcli", "run"]), ["agentcli", "run"])
+        finally:
+            shutil.which = real
+
+
+class NoShellNeeded(unittest.TestCase):
+    """PORT-002: nothing the system runs itself needs bash or a python3 command."""
+
+    def test_registered_commands_use_the_running_interpreter_and_no_shell(self):
+        for rel in ("scripts/test_manifest.json", "scripts/templates/test_manifest.json", ".audit/manifest.json",
+                    "scripts/templates/audit_manifest.json"):
+            text = (SCRIPTS.parent / rel).read_text(encoding="utf-8")
+            # (the package lane's placeholders are the project's own scripts)
+            self.assertNotIn("verify_development_system.sh", text, rel)
+        self.assertNotIn('"bash"', (SCRIPTS / "health_check.py").read_text(encoding="utf-8"))
+
+    def test_python3_in_a_suite_command_means_this_interpreter(self):
+        p = Project(fast_config())
+        try:
+            p.suites([{"id": "demo", "kind": "command", "results": "exit",
+                       "command": ["python3", "-c", "import sys; print(sys.executable)"],
+                       "groups": {"only": {"tiers": ["t0"]}}}])
+            only_git = p.base / "only-git"                      # a PATH with git and no python3
+            only_git.mkdir()
+            (only_git / "git").symlink_to(shutil.which("git"))
+            env = {"PATH": str(only_git)}
+            cp = p.run("run_tests.py", "--tier", "t0", "--suite", "demo", env=env)
+            self.assertEqual(cp.returncode, 0, cp.stdout + cp.stderr)
+            self.assertIn("PASS", cp.stdout)
+        finally:
+            p.close()
