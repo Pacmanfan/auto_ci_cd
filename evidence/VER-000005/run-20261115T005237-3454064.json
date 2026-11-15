@@ -1,0 +1,200 @@
+{
+ "run_id": "20261115T005237-3454064",
+ "runner_version": 2,
+ "started_at": "2026-11-15T05:55:55.039335+00:00",
+ "wall_seconds": 197.1,
+ "tier": "t2",
+ "scope": "affected",
+ "changes_from": "request 2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.md",
+ "changed": [
+  "README.md",
+  "docs/README.md",
+  "docs/requirements/development_operations.md",
+  "docs/requirements/requirements.txt",
+  "requests/inbox/2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.json",
+  "requests/inbox/2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.md",
+  "requests/processing/2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.json",
+  "requests/processing/2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.md",
+  "scripts/templates/requirements.txt",
+  "scripts/tests/test_root_readme.py",
+  "work/active/WORK-000005-root-readme-md-short-orientation-pointin.md",
+  "work/work.txt"
+ ],
+ "unmapped": [],
+ "head": "41cef39f3d3c501b353189da2b7a25256a1b526c",
+ "describe": "41cef39",
+ "provenance": {
+  "dirty": true,
+  "dirty_paths": 10,
+  "diff_sha256": "d0100ebdc064948fb3aaf1859f02285bd91c2fbb5393ec6d1005f4fd2602f9b7",
+  "python": "3.12.3",
+  "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+  "git": "git version 2.43.0",
+  "manifest_sha256": "5d300824ee592bf4da0e93a1343c02ac758f689500a24d2471de3236501dbca4",
+  "config_sha256": "560bb6c73906e8a31886fe6010849007b151ad1f5093c343532fd3925cc97aae",
+  "build_system": "none"
+ },
+ "build_dir": "/home/dev/auto_ci_cd/build/debug",
+ "jobs": 8,
+ "host": "dev",
+ "request": "2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.md",
+ "request_fingerprint": "247eaf78ec29eccfbb9ba8a165e9e3eb624657b470bfe77aa261b177e8556de6",
+ "request_code_paths": [
+  "scripts/templates/requirements.txt",
+  "scripts/tests/test_root_readme.py"
+ ],
+ "allow_stale": false,
+ "classification": "PASS",
+ "warnings": [
+  "--build: build.system is 'none' in devsys.json; nothing was built"
+ ],
+ "groups": [
+  {
+   "suite": "devsys",
+   "group": "structure",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.06460466101998463,
+   "wall": 0.06460466101998463,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/devsys.py verify-structure",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "drift",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.11551410000538453,
+   "wall": 0.11551410000538453,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/drift_detect.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "doc_integrity",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.06462299500708468,
+   "wall": 0.06462299500708468,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/doc_integrity.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "audits",
+   "group": "invariants",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 0.0652392880001571,
+   "wall": 0.0652392880001571,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "t0 (always)"
+   ],
+   "command": "python3 scripts/invariant_check.py",
+   "status": "PASS"
+  },
+  {
+   "suite": "scripts",
+   "group": "unit",
+   "shards": 1,
+   "statuses": [
+    "PASS"
+   ],
+   "seconds": 197.0997002439981,
+   "wall": 197.0997002439981,
+   "cases": 0,
+   "failed": [],
+   "flaky": [],
+   "expected": [],
+   "detail": [],
+   "reasons": [
+    "input scripts/templates/requirements.txt (+1)"
+   ],
+   "command": "python3 -m unittest discover -s scripts/tests",
+   "status": "PASS"
+  }
+ ],
+ "jobs_detail": [
+  {
+   "label": "devsys/structure",
+   "status": "PASS",
+   "seconds": 0.06,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/37-3454064/002/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/drift",
+   "status": "PASS",
+   "seconds": 0.12,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/37-3454064/004/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/doc_integrity",
+   "status": "PASS",
+   "seconds": 0.06,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/37-3454064/005/output.log",
+   "cases": []
+  },
+  {
+   "label": "audits/invariants",
+   "status": "PASS",
+   "seconds": 0.07,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/37-3454064/003/output.log",
+   "cases": []
+  },
+  {
+   "label": "scripts/unit",
+   "status": "PASS",
+   "seconds": 197.1,
+   "rc": 0,
+   "detail": "",
+   "log": "/home/dev/auto_ci_cd/tmp/tr/37-3454064/001/output.log",
+   "cases": []
+  }
+ ]
+}

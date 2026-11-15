@@ -18,6 +18,7 @@ docs/architecture/              current system explanation
 
 ## Entry points
 
+* `README.md` (repository root) — a short orientation for a first visit: what the system is, getting started, the panels. It points here; this file stays the canonical entry point (REQ-DEVOPS-011).
 * `docs/requirements/README.md` and `docs/requirements/requirements.txt` —
   normative requirement owners and IDs. See `docs/requirements/development_operations.md` for lifecycle rules (REQ-DEVOPS-001..050).
 * `docs/architecture/README.md` — current architecture and subsystem map (PROJECT-SPECIFIC).

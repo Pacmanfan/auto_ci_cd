@@ -1,0 +1,31 @@
+{
+ "work": "WORK-000005",
+ "runs": [
+  {
+   "at": "2026-11-15T05:56:11.569225+00:00",
+   "verdict": "FAIL",
+   "gate_version": 3,
+   "work": "WORK-000005",
+   "request": "2026-11-15-add-a-readme-md-at-the-reposit-req-chat-20261115-003.md",
+   "request_id": "REQ-CHAT-20261115-003",
+   "request_fingerprint": "247eaf78ec29eccfbb9ba8a165e9e3eb624657b470bfe77aa261b177e8556de6",
+   "request_code_paths": [
+    "scripts/templates/requirements.txt",
+    "scripts/tests/test_root_readme.py"
+   ],
+   "test_runs": [
+    "20261115T005237-3454064"
+   ],
+   "evidence": [
+    "VER-000005"
+   ],
+   "head": "41cef39f3d3c501b353189da2b7a25256a1b526c",
+   "agent_id": "agent-worker-01-dev-a1e514",
+   "fails": [
+    "request registered protected artifact(s) docs/requirements/development_operations.md but the work record is not 'Type: process-change' with a Decision ADR (docs/process/process-protection.md)"
+   ],
+   "warns": [],
+   "passes": 12
+  }
+ ]
+}
