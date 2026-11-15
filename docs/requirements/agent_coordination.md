@@ -148,6 +148,13 @@ snapshot) without a terminal, with no line wider than the given width.
   `coordination.idle_minutes`. On ending, the station SHALL close the
   panels it started and prune roster entries verified DEAD.
 
+- `station.py --open` SHALL open the running station's web control panel in
+  the browser; with no station it SHALL start one with the web panel only
+  that stays until `station.py --stop`. `tools/panel/desktop_launcher.py
+  install` SHALL write one launcher for the Qt worker control panel and one
+  for this web dashboard (application menu, and the desktop with
+  `--desktop`), and `uninstall` SHALL remove both.
+
 ## COORD-012 — Into a running session through hooks
 
 `msg.py hook` SHALL read one hook event (JSON) on stdin and, when the agent

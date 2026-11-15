@@ -1,0 +1,31 @@
+{
+ "work": "WORK-000006",
+ "runs": [
+  {
+   "at": "2026-11-15T05:59:26.638100+00:00",
+   "verdict": "PASS",
+   "gate_version": 3,
+   "work": "WORK-000006",
+   "request": "2026-11-15-desktop-icons-put-an-icon-on-t-req-chat-20261115-004.md",
+   "request_id": "REQ-CHAT-20261115-004",
+   "request_fingerprint": "5d2d0abfadf79768625df155123c7c1bb6827c09e06c2b28bb6ae5cccec63343",
+   "request_code_paths": [
+    "scripts/templates/requirements.txt",
+    "scripts/tests/test_agent_coordination.py",
+    "tools/panel/desktop_launcher.py",
+    "tools/panel/station.py"
+   ],
+   "test_runs": [
+    "20261115T005553-3508555"
+   ],
+   "evidence": [
+    "VER-000006"
+   ],
+   "head": "41cef39f3d3c501b353189da2b7a25256a1b526c",
+   "agent_id": "agent-dev-20261114230032-8bee2e",
+   "fails": [],
+   "warns": [],
+   "passes": 14
+  }
+ ]
+}

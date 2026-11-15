@@ -4,6 +4,9 @@ messaging push-based and keeps the panels running while agents are here
 (COORD-010, COORD-011, docs/process/agent-coordination.md).
 
     python3 tools/panel/station.py [--root DIR] [--stay]      # normally started by the first agent
+    python3 tools/panel/station.py --open                     # open the web control panel in the browser; starts a
+                                                              # station that stays (web panel only) when none runs
+    python3 tools/panel/station.py --stop                     # end the running station
 
 It runs:
 
@@ -156,7 +159,50 @@ def start_qt(root: Path) -> tuple[subprocess.Popen | None, str | None]:
     return p, None
 
 
-def run(root: Path, *, stay: bool = False, linger: float | None = None) -> int:
+def open_dashboard(root: Path) -> int:
+    """The desktop "dashboard" icon: open the running station's web panel in
+    the browser. With no station, start one that stays (the operator asked
+    for it, no agent did) with the web panel only, then open it."""
+    import webbrowser
+    info = bus.station_info(root)
+    if info is None:
+        with open(bus.coordination_dir(root) / "station.log", "ab") as log:
+            subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--root", str(root), "--stay",
+                              "--panels", "web"], cwd=str(root), stdin=subprocess.DEVNULL, stdout=log,
+                             stderr=subprocess.STDOUT, env={**os.environ, "AGENT_PROCESS_ROOT": str(root)},
+                             **plat.group_popen_kwargs())
+        end = time.monotonic() + 10
+        while time.monotonic() < end and not (info and info.get("ready")):
+            time.sleep(0.1)
+            info = bus.station_info(root)
+    if not info or not info.get("web"):
+        print("station: the web control panel is not running: "
+              + str((info or {}).get("web_error") or "the station did not start (see station.log)"), file=sys.stderr)
+        return 1
+    print(info["web"], flush=True)
+    webbrowser.open(info["web"])
+    return 0
+
+
+def stop_station(root: Path) -> int:
+    info = bus.station_info(root)
+    pid = ((info or {}).get("process") or {}).get("pid")
+    if not pid:
+        print("station: none running")
+        return 0
+    if os.name == "nt":
+        plat.signal_group(pid, hard=True)
+    else:
+        os.kill(int(pid), signal.SIGTERM)                    # handled: the panels are closed in order
+    end = time.monotonic() + 15
+    while time.monotonic() < end and bus.station_info(root) is not None:
+        time.sleep(0.1)
+    gone = bus.station_info(root) is None
+    print(f"station: {'stopped' if gone else 'did not stop'} (pid {pid})")
+    return 0 if gone else 1
+
+
+def run(root: Path, *, stay: bool = False, linger: float | None = None, panels: list | None = None) -> int:
     cdir = bus.coordination_dir(root)
     fd = os.open(cdir / "station.lock", os.O_RDWR | os.O_CREAT, 0o644)
     try:
@@ -167,7 +213,8 @@ def run(root: Path, *, stay: bool = False, linger: float | None = None) -> int:
         return proc.CONFLICT
     if linger is None:
         linger = float(cfgmod.get("coordination.linger_seconds", root, 20))
-    panels = list(cfgmod.get("coordination.panels", root, ["web", "qt"]) or [])
+    if panels is None:
+        panels = list(cfgmod.get("coordination.panels", root, ["web", "qt"]) or [])
     stopping = threading.Event()
     for name in ("SIGTERM", "SIGINT", "SIGBREAK"):
         if hasattr(signal, name):
@@ -238,6 +285,9 @@ def main(argv=None) -> int:
     ap.add_argument("--root", default=None, help="the development system to serve (default: this checkout)")
     ap.add_argument("--stay", action="store_true", help="do not end when the last agent leaves")
     ap.add_argument("--linger", type=float, default=None, help="seconds to stay after the last agent left")
+    ap.add_argument("--panels", nargs="*", default=None, choices=["web", "qt"], help="panels to start (default: coordination.panels)")
+    ap.add_argument("--open", action="store_true", help="open the web control panel in the browser (starting a station if needed)")
+    ap.add_argument("--stop", action="store_true", help="end the running station")
     a = ap.parse_args(argv)
     root = proc.main_root(Path(a.root).resolve() if a.root else proc.repo_root())
     os.environ["AGENT_PROCESS_ROOT"] = str(root)            # workers started from a panel serve this root
@@ -245,7 +295,11 @@ def main(argv=None) -> int:
     if shutil.which("git") is None:
         print("station: git is not on PATH", file=sys.stderr)
         return 1
-    return run(root, stay=a.stay, linger=a.linger)
+    if a.stop:
+        return stop_station(root)
+    if a.open:
+        return open_dashboard(root)
+    return run(root, stay=a.stay, linger=a.linger, panels=a.panels)
 
 
 if __name__ == "__main__":

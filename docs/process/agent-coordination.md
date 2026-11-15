@@ -109,6 +109,22 @@ in the page. `--host 0.0.0.0` exposes control of the agents to the network:
 use it only behind something you trust, and open the URL with its
 `?token=...`. Stopping the panel does not stop the workers.
 
+### Desktop icons
+
+```bash
+python3 tools/panel/desktop_launcher.py install --desktop    # application menu and desktop
+python3 tools/panel/desktop_launcher.py uninstall
+```
+
+Two launchers are written for this installation:
+
+- **Worker Control** starts the Qt worker control panel (`tools/worker-panel`).
+- **Web Dashboard** runs `python3 tools/panel/station.py --open`: it opens the
+  web control panel in the browser. When no station runs it starts one with
+  the web panel only, and that one stays until
+  `python3 tools/panel/station.py --stop` (or logout), because the operator
+  asked for it, not an agent.
+
 ### Terminal dashboard
 
 ```bash

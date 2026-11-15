@@ -705,6 +705,55 @@ class Station(unittest.TestCase):
         threading.Timer(0.3, lambda: bus.send(self.root, A1, A2, "polled")).start()
         self.assertEqual([m["body"] for m in bus.wait(self.root, A2, timeout=20, poll=0.2)], ["polled"])
 
+    def test_the_dashboard_icon_opens_the_web_panel_and_starts_a_station_that_stays(self):
+        seen = self.p.base / "opened-url"
+        browser = self.p.base / "browser.sh"
+        browser.write_text(f'#!/bin/sh\necho "$1" > "{seen}"\n')
+        browser.chmod(0o755)
+        station = [sys.executable, str(FRAMEWORK / "tools" / "panel" / "station.py"), "--root", str(self.root)]
+        env = {**self.p.env, "BROWSER": str(browser)}
+        cp = subprocess.run([*station, "--open"], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        info = bus.station_info(self.root)
+        self.assertEqual(cp.stdout.strip(), info["web"])
+        self.assertTrue(self.p.wait_for(seen.exists), "the browser was not asked to open the panel")
+        self.assertEqual(seen.read_text().strip(), info["web"])
+        self.assertEqual(info["qt"]["pid"], None)                  # the dashboard icon opens the web panel only
+        time.sleep(3)                                              # no agent anywhere, linger is 1 s: it stays
+        self.assertEqual(bus.station_info(self.root)["process"]["pid"], info["process"]["pid"])
+        again = subprocess.run([*station, "--open"], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(again.stdout.strip(), info["web"])        # the same station, nothing new started
+        stop = subprocess.run([*station, "--stop"], capture_output=True, text=True, env=self.p.env, timeout=60)
+        self.assertEqual(stop.returncode, 0, stop.stdout + stop.stderr)
+        self.assertTrue(self.gone(info))
+
+    def test_the_launcher_installs_an_icon_for_the_control_panel_and_one_for_the_dashboard(self):
+        home = self.p.base / "xdg"
+        launcher = [sys.executable, str(FRAMEWORK / "tools" / "panel" / "desktop_launcher.py")]
+        # A home of its own: install and uninstall also look at the desktop
+        # directory, and the real one is not this test's to touch.
+        fake_home = self.p.base / "home"
+        (fake_home / "Desktop").mkdir(parents=True)
+        env = {**self.p.env, "XDG_DATA_HOME": str(home), "HOME": str(fake_home),
+               "XDG_CONFIG_HOME": str(fake_home / ".config"), "XDG_DESKTOP_DIR": str(fake_home / "Desktop")}
+        mine = Path.home() / "Desktop"
+        before = sorted(f.name for f in mine.glob("devsys-*.desktop")) if mine.is_dir() else []
+        out = subprocess.run([*launcher, "install", "--desktop"], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        files = sorted((home / "applications").glob("*.desktop"))
+        self.assertEqual([f.name.split("-")[1:3] for f in files], [["web", "dashboard"], ["worker", "control"]])
+        self.assertEqual(len(list((fake_home / "Desktop").glob("devsys-*.desktop"))), 2)
+        dash_entry, panel_entry = (f.read_text() for f in files)
+        self.assertRegex(dash_entry, r"\nExec=\S+ \S+tools/panel/station\.py --open\n")
+        self.assertIn("worker-panel", panel_entry)
+        self.assertIn("Web Dashboard", dash_entry)
+        gone = subprocess.run([*launcher, "uninstall"], capture_output=True, text=True, env=env, timeout=60)
+        self.assertEqual(gone.stdout.count("removed "), 4, gone.stdout)      # menu and desktop, both launchers
+        self.assertEqual(list((home / "applications").glob("*.desktop")), [])
+        self.assertEqual(list((fake_home / "Desktop").glob("*.desktop")), [])
+        after = sorted(f.name for f in mine.glob("devsys-*.desktop")) if mine.is_dir() else []
+        self.assertEqual(after, before, "the operator's real desktop was touched")
+
     def test_autostart_can_be_switched_off(self):
         name = self.p.request("Quiet work")
         cp = self.p.run("claim.py", "--claim-request", name, agent=A1, env={"DEVSYS_COORDINATION_AUTOSTART": "0"})

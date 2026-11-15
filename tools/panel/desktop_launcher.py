@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
-"""Desktop and application-menu launcher for the Worker Control Panel.
+"""Desktop and application-menu launchers for the Worker Control Panel and
+the web dashboard.
 
     python3 tools/panel/desktop_launcher.py install [--desktop] [--no-menu]
     python3 tools/panel/desktop_launcher.py uninstall
-    python3 tools/panel/desktop_launcher.py show            # the entry, without writing it
+    python3 tools/panel/desktop_launcher.py show            # the entries, without writing them
 
-``install`` writes a freedesktop.org desktop entry for *this* installation of
-the development system:
+``install`` writes two freedesktop.org desktop entries for *this*
+installation of the development system: the Qt worker control panel
+(``tools/worker-panel``), and the web dashboard (``tools/panel/station.py
+--open``: opens the web control panel in the browser, starting a station
+when none runs). Each goes to:
 
 * the application menu: ``$XDG_DATA_HOME/applications/`` (default
   ``~/.local/share/applications``);
 * with ``--desktop``, also a copy on the desktop (``xdg-user-dir DESKTOP``),
   marked executable and trusted so the desktop's icon view may launch it.
 
-The entry runs ``tools/worker-panel`` of the directory this file belongs to.
+The entries run the tools of the directory this file belongs to.
 A desktop entry must name absolute paths, so they are computed here, at
 install time, from this file's own location; nothing machine-specific is kept
 in the repository. Moving the installation means running ``install`` again
@@ -46,6 +50,8 @@ import devsys_config as cfgmod  # noqa: E402
 
 APP_NAME = "Development System — Worker Control"
 ICON = "utilities-system-monitor"
+DASHBOARD_NAME = "Development System — Web Dashboard"
+DASHBOARD_ICON = "applications-internet"
 WM_CLASS = "devsys-worker-control"      # tools/panel/worker_panel.py APP_NAME
 KEY = "X-Devsys-System"                 # which installation an entry launches
 
@@ -71,7 +77,38 @@ def installation() -> dict:
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "project"
     digest = hashlib.sha1(str(SYSTEM).encode()).hexdigest()[:8]
     return {"system": SYSTEM, "project_root": project_root, "project": name,
-            "entry_id": f"devsys-worker-control-{slug}-{digest}", "launcher": SYSTEM / "tools" / "worker-panel"}
+            "entry_id": f"devsys-worker-control-{slug}-{digest}", "launcher": SYSTEM / "tools" / "worker-panel",
+            "dashboard_id": f"devsys-web-dashboard-{slug}-{digest}"}
+
+
+def dashboard_text(info: dict) -> str:
+    """The web dashboard's entry: the interpreter running this installer and
+    the station's ``--open`` (a desktop entry needs absolute paths)."""
+    where = info["project_root"] if info["project_root"] != info["system"] else info["system"]
+    station = info["system"] / "tools" / "panel" / "station.py"
+    return "\n".join([
+        "[Desktop Entry]",
+        "Type=Application",
+        "Version=1.5",
+        f"Name={_value(DASHBOARD_NAME)} ({_value(info['project'])})",
+        "GenericName=Web Control Panel",
+        f"Comment={_value(f'Agents, messages, workers and requests of the development system in {where}, in the browser')}",
+        f"Exec={_quote(sys.executable)} {_quote(str(station))} --open",
+        f"TryExec={_quote(sys.executable)}",
+        f"Path={_value(str(info['system']))}",
+        f"Icon={DASHBOARD_ICON}",
+        "Terminal=false",
+        "Categories=Development;",
+        "Keywords=agents;messages;workers;dashboard;development;",
+        "StartupNotify=false",
+        f"{KEY}={_value(str(info['system']))}",
+        "",
+    ])
+
+
+def entries(info: dict) -> list[tuple[str, str]]:
+    """(entry id, text) of every launcher of this installation."""
+    return [(info["entry_id"], entry_text(info)), (info["dashboard_id"], dashboard_text(info))]
 
 
 def entry_text(info: dict) -> str:
@@ -123,19 +160,20 @@ def install(menu: bool = True, desktop: bool = False) -> list[str]:
     info = installation()
     if not os.access(info["launcher"], os.X_OK):
         raise SystemExit(f"{info['launcher']} is missing or not executable")
-    text = entry_text(info)
     done = []
     targets = []
-    if menu:
-        targets.append(menu_dir() / f"{info['entry_id']}.desktop")
-    if desktop:
-        d = desktop_dir()
-        if d is None:
-            raise SystemExit("no desktop directory (xdg-user-dir DESKTOP)")
-        targets.append(d / f"{info['entry_id']}.desktop")
-    for target in targets:
+    d = desktop_dir() if desktop else None
+    if desktop and d is None:
+        raise SystemExit("no desktop directory (xdg-user-dir DESKTOP)")
+    for entry_id, text in entries(info):
+        if menu:
+            targets.append((menu_dir() / f"{entry_id}.desktop", text))
+        if d is not None:
+            targets.append((d / f"{entry_id}.desktop", text))
+    for target, text in targets:
         target.parent.mkdir(parents=True, exist_ok=True)
-        tmp = target.with_suffix(".desktop.tmp")
+        # The validator insists on the .desktop extension, also for the temporary file.
+        tmp = target.with_name(f".{target.stem}.new.desktop")
         tmp.write_text(text, encoding="utf-8")
         tmp.chmod(0o755)                      # a desktop icon view launches only executable entries
         problem = _validate(tmp)
@@ -159,7 +197,7 @@ def uninstall() -> list[str]:
     for d in (menu_dir(), desktop_dir()):
         if d is None or not d.is_dir():
             continue
-        for f in sorted(d.glob("devsys-worker-control-*.desktop")):
+        for f in sorted(d.glob("devsys-*.desktop")):
             try:
                 text = f.read_text(encoding="utf-8")
             except OSError:
@@ -180,9 +218,9 @@ def main(argv=None) -> int:
     sub.add_parser("show", help="print the entry for this installation")
     a = ap.parse_args(argv)
     if a.cmd == "show":
-        info = installation()
-        print(f"# {info['entry_id']}.desktop")
-        print(entry_text(info), end="")
+        for entry_id, text in entries(installation()):
+            print(f"# {entry_id}.desktop")
+            print(text)
         return 0
     lines = install(menu=not a.no_menu, desktop=a.desktop) if a.cmd == "install" else uninstall()
     for line in lines:
