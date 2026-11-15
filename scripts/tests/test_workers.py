@@ -445,6 +445,11 @@ class Identity(unittest.TestCase):
     # verbatim; evidence (run and gate records) states what ran on which
     # machine with which paths. Neither is installed with the framework.
     RECORD_DIRS = ("requests/", "evidence/")
+    # Project configuration, not the system (ADR-000203): the project's own
+    # devsys.json names the agent executables it runs (the template in
+    # scripts/templates/ stays neutral and is scanned), and the agent CLI's
+    # project settings directory is that product's own file layout.
+    PROJECT_CONFIG = ("devsys.json", "." + "cl" + "aude/")
     SKIP = {".git", "tmp", "build", "__pycache__", "node_modules"}
 
     def files(self):
@@ -452,7 +457,7 @@ class Identity(unittest.TestCase):
             rel = p.relative_to(FRAMEWORK)
             if p.is_file() and not (set(rel.parts) & self.SKIP) and rel.parts[:2] != (".audit", "runs") \
                     and rel.parts[:3] not in ((".agent", "state", "runtime"), (".agent", "state", "claims")):
-                if not rel.as_posix().startswith(self.RECORD_DIRS):
+                if not rel.as_posix().startswith(self.RECORD_DIRS + self.PROJECT_CONFIG):
                     yield rel.as_posix(), p
 
     def test_no_vendor_identity_outside_the_documented_exception(self):

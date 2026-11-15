@@ -3,7 +3,7 @@
 **Status:** ACTIVE
 **Owner:** Development tooling (`scripts/workers/`, `tools/panel/`)
 **Depends On:** `development_operations.md` (REQ-DEVOPS-014 intake, REQ-DEVOPS-016 claims, REQ-DEVOPS-019 completion gate, REQ-DEVOPS-024 escalation, REQ-DEVOPS-025 recovery, REQ-DEVOPS-042 commit attribution, REQ-DEVOPS-051 verify-commit): the lifecycle the workers drive, unchanged
-**Decision:** ADR-000200, amended by ADR-000201 (agent profiles, adapters) (supersedes the external-engine placement of ADR-000196; carries ADR-000197 and ADR-000198 forward)
+**Decision:** ADR-000200, amended by ADR-000201 (agent profiles, adapters) and ADR-000203 (project configuration) (supersedes the external-engine placement of ADR-000196; carries ADR-000197 and ADR-000198 forward)
 **Supersedes:** TICKET-ENGINE-001..008 (`docs/history/requirements/autonomous_ticket_engine.md`)
 **System documentation:** `docs/process/worker-orchestrator.md`, `docs/process/agent-profiles.md`
 
@@ -164,6 +164,11 @@ speaking the JSON-lines protocol of `scripts/workers/agent.py`).
   directory (`scripts/workers/profiles/`, only `*_adapter.py`), which holds
   the wrappers that translate an agent's own event stream into the protocol
   (ADR-000201). The adapters' file names stay neutral.
+- **Project configuration is not the system (ADR-000203):** a configured
+  project's own `devsys.json` names the agent executables it runs, and an
+  agent CLI's project settings directory follows that product's layout. The
+  defaults (`scripts/devsys_config.py`) and the template
+  (`scripts/templates/devsys.json`) SHALL stay neutral.
 - **Records are not the system:** request records under `requests/` quote
   what a person asked for, and evidence under `evidence/` (run and gate
   records) states what ran on which machine with which paths. Both are

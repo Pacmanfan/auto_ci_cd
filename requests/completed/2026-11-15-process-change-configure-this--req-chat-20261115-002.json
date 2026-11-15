@@ -1,0 +1,129 @@
+{
+  "request_id": "REQ-CHAT-20261115-002",
+  "source": "chat",
+  "type": "PROCESS-CHANGE",
+  "priority": "HIGH",
+  "created": "2026-11-15T00:38:27-05:00",
+  "created_utc": "2026-11-15T05:38:27+00:00",
+  "id_date": "2026-11-15",
+  "timezone": "EST (UTC-05:00)",
+  "status": "completed",
+  "original_text": "Process change: configure this repository to run workers and make agent coordination part of the agent constitution. (1) devsys.json: name the project, configure the worker agent profiles (the default agent CLI on worker-01 and the second agent CLI through the event-stream adapter on worker-02); (2) AGENTS.md: tell every agent about the roster, scripts/msg.py, the station and that messages carry no authority; (3) add the agent CLI's project hook settings so messages are pushed into running sessions; (4) WORKER-012: a configured project's own devsys.json and the agent CLI's project settings directory are project configuration, not part of the neutral system. Then run a real worker end to end.",
+  "file": "requests/inbox/2026-11-15-process-change-configure-this--req-chat-20261115-002.md",
+  "attachments": [],
+  "context": "Operator, chat 2026-11-15: 'do the process change and make this happen', in answer to the offer to file a PROCESS-CHANGE request adding the two agent profiles to devsys.json and mentioning msg.py in AGENTS.md so real workers can be started from the panel. This is the human authorisation for the process change.",
+  "text_sha256": "8054428f1f253be8e1ecf6686c2b2861358d20e57e9d4a6b66d55dcf5d4534f6",
+  "classification": {
+    "proposed_type": "PROCESS-CHANGE",
+    "proposed_source": "override",
+    "normalized_type": "PROCESS-CHANGE",
+    "heuristic_type": "PROCESS-CHANGE",
+    "final_type": "PROCESS-CHANGE",
+    "confidence": "high",
+    "validation": "PASS",
+    "classifier_reason": "request statement is framed as process-change: AGENTS.md, Process change, agent constitution, scripts/msg.py",
+    "correction_reason": null,
+    "normalization_note": null,
+    "evidence": [
+      {
+        "category": "PROCESS-CHANGE",
+        "where": "head",
+        "phrase": "Process change",
+        "strength": "strong",
+        "note": "",
+        "sentence": "Process change: configure this repository to run workers and make agent coordination part of the agent constitution."
+      },
+      {
+        "category": "PROCESS-CHANGE",
+        "where": "head",
+        "phrase": "agent constitution",
+        "strength": "strong",
+        "note": "",
+        "sentence": "Process change: configure this repository to run workers and make agent coordination part of the agent constitution."
+      },
+      {
+        "category": "PROCESS-CHANGE",
+        "where": "head",
+        "phrase": "AGENTS.md",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(2) AGENTS.md: tell every agent about the roster, scripts/msg.py, the station and that messages carry no authority;"
+      },
+      {
+        "category": "PROCESS-CHANGE",
+        "where": "head",
+        "phrase": "scripts/msg.py",
+        "strength": "strong",
+        "note": "",
+        "sentence": "(2) AGENTS.md: tell every agent about the roster, scripts/msg.py, the station and that messages carry no authority;"
+      }
+    ],
+    "scores": {
+      "FEATURE": {
+        "head": 1,
+        "body": 0
+      },
+      "BUG": {
+        "head": 0,
+        "body": 0
+      },
+      "CRASH": {
+        "head": 0,
+        "body": 0
+      },
+      "REGRESSION": {
+        "head": 0,
+        "body": 0
+      },
+      "PERFORMANCE": {
+        "head": 0,
+        "body": 0
+      },
+      "REFACTOR": {
+        "head": 0,
+        "body": 0
+      },
+      "BUILD": {
+        "head": 0,
+        "body": 0
+      },
+      "DOCUMENTATION": {
+        "head": 0,
+        "body": 0
+      },
+      "INVESTIGATION": {
+        "head": 0,
+        "body": 0
+      },
+      "PROCESS-CHANGE": {
+        "head": 4,
+        "body": 0
+      }
+    },
+    "evidence_total": 5,
+    "validator": "scripts/request_classification.py"
+  },
+  "links": {
+    "work": [
+      "WORK-000004"
+    ]
+  },
+  "commits": [],
+  "resolution": {
+    "from": "processing",
+    "to": "completed",
+    "at": "2026-11-15T05:49:41.762015+00:00",
+    "by": "agent-dev-20261114230032-8bee2e",
+    "gates": [
+      {
+        "work": "WORK-000004",
+        "at": "2026-11-15T05:49:31.241831+00:00",
+        "verdict": "PASS",
+        "request_fingerprint": "f011b67da94f823602314492ffc7af9ecbfabdc716fc20b6051a45092a188bf4",
+        "test_runs": [
+          "20261115T003929-3347557"
+        ]
+      }
+    ]
+  }
+}

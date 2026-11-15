@@ -1,0 +1,30 @@
+{
+ "work": "WORK-000004",
+ "runs": [
+  {
+   "at": "2026-11-15T05:49:31.241831+00:00",
+   "verdict": "PASS",
+   "gate_version": 3,
+   "work": "WORK-000004",
+   "request": "2026-11-15-process-change-configure-this--req-chat-20261115-002.md",
+   "request_id": "REQ-CHAT-20261115-002",
+   "request_fingerprint": "f011b67da94f823602314492ffc7af9ecbfabdc716fc20b6051a45092a188bf4",
+   "request_code_paths": [
+    "devsys.json",
+    "scripts/templates/decisions.txt",
+    "scripts/tests/test_workers.py"
+   ],
+   "test_runs": [
+    "20261115T003929-3347557"
+   ],
+   "evidence": [
+    "VER-000004"
+   ],
+   "head": "3998feba62dffc1506c82988e31655b0d142c1a7",
+   "agent_id": "agent-dev-20261114230032-8bee2e",
+   "fails": [],
+   "warns": [],
+   "passes": 14
+  }
+ ]
+}

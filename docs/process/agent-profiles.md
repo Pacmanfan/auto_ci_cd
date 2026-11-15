@@ -171,9 +171,10 @@ prints):
   hook process inherits the CLI's environment: a worker's agent has
   `AGENT_ID`; an interactive session that created its id in a shell command
   is found through `AGENT_OWNER_PID` instead.
-- This file is not shipped with the system (a settings directory named
-  after a product would break the identity rule, WORKER-012): add it to the
-  project that uses the system. It has not been exercised end to end with a
+- The system does not ship this file (`devsys.py install` copies no agent
+  settings); a project adds it. This repository has it (ADR-000203): the
+  agent CLI's project settings directory is project configuration under
+  WORKER-012. It has not been exercised end to end with a
   live session here; the hook's output forms are unit-tested
   (`test_agent_coordination.Hooks`).
 - On Windows write the command with `python` and `%CLAUDE_PROJECT_DIR%`.

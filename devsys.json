@@ -7,7 +7,7 @@
   ],
   "schema": 1,
   "project": {
-    "name": "<PROJECT>",
+    "name": "auto_ci_cd",
     "source_roots": []
   },
   "paths": {
@@ -19,7 +19,24 @@
     "system": "none"
   },
   "tests": {
-    "selection": "auto"
+    "selection": "auto",
+    "no_test_patterns": [
+      "docs/*",
+      "*.md",
+      "requests/*",
+      "work/*",
+      "evidence/*",
+      ".agent/*",
+      "LICENSE",
+      "readme.md",
+      "*.pro.user",
+      "*.pro.user.*",
+      ".gitignore",
+      ".vscode/*",
+      ".claude/*",
+      "*/__pycache__/*",
+      "*.pyc"
+    ]
   },
   "completion": {
     "min_tier": "t2"
@@ -99,6 +116,78 @@
           "expected_seconds": 30
         }
       }
+    }
+  },
+  "workers": {
+    "_comment": "ADR-000203. worker-01 runs the default agent (workers.agent); worker-02 the profile assigned below. Profiles and their flags: docs/process/agent-profiles.md.",
+    "max_workers": 2,
+    "isolation": "shared",
+    "agent": {
+      "command": [
+        "claude",
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "auto",
+        "--permission-prompts",
+        "none",
+        "--session-id",
+        "{session_id}",
+        "--name",
+        "{name}",
+        "--add-dir",
+        "{attempt_dir}"
+      ],
+      "env_scrub": [
+        "CLAUDECODE",
+        "CLAUDE_CODE_CHILD_SESSION",
+        "CLAUDE_CODE_SESSION_ID",
+        "CLAUDE_PID",
+        "CLAUDE_EFFORT",
+        "CLAUDE_CODE_MESSAGING_SOCKET",
+        "CLAUDE_CODE_MESSAGING_TOKEN",
+        "CLAUDE_CODE_SESSION_ATTENDED",
+        "CLAUDE_CODE_ENTRYPOINT",
+        "CLAUDE_CODE_EXECPATH",
+        "AI_AGENT"
+      ],
+      "rate_limit_patterns": [
+        "usage limit",
+        "rate limit",
+        "limit reached"
+      ]
+    },
+    "profiles": {
+      "opencode": {
+        "command": [
+          "{python}",
+          "{scripts}/workers/profiles/event_stream_adapter.py",
+          "--session-id",
+          "{session_id}",
+          "--raw-log",
+          "{attempt_dir}/raw.jsonl",
+          "--",
+          "opencode",
+          "run",
+          "--format",
+          "json",
+          "--auto",
+          "--title",
+          "{name}"
+        ],
+        "env_scrub": [],
+        "rate_limit_patterns": [
+          "usage limit",
+          "rate limit",
+          "limit reached",
+          "quota"
+        ]
+      }
+    },
+    "assign": {
+      "worker-02": "opencode"
     }
   }
 }
